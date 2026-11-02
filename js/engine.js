@@ -1336,7 +1336,6 @@ function botUseCardSmart(botColor, after, opts) {
       case 'ghost':
         consider(idx, 300);
         break;
-      case 'peek':
       case 'weather':
         if (overflowSoon && idx === 0) consider(idx, 150);
         else consider(idx, 40);
@@ -1440,7 +1439,7 @@ function applyBotTargets(botColor, targets) {
 }
 
 // 봇의 카드 드래프트: 고난이도는 강한 카드를 우선
-const BOT_CARD_PRIORITY = ['chain', 'windmill', 'giant', 'wall', 'bomb', 'snipe', 'double', 'shield', 'trap', 'sixsense', 'trade', 'blockade', 'ghost', 'peek', 'weather', 'infection', 'reversal', 'meteor', 'teleport', 'earthquake', 'alkkagi'];
+const BOT_CARD_PRIORITY = ['chain', 'windmill', 'giant', 'wall', 'bomb', 'snipe', 'double', 'shield', 'trap', 'sixsense', 'trade', 'blockade', 'ghost', 'weather', 'infection', 'reversal', 'meteor', 'teleport', 'earthquake', 'alkkagi'];
 // 봇의 전설 카드 사용: 턴 시작에 조건이 맞고 쓸 만하면 발동 (발동이 끝나면 이어서 착수)
 const BOT_MIRROR_OK = ['chain', 'windmill', 'bomb', 'shield', 'trap', 'wall', 'blockade', 'infection', 'sixsense'];
 function botLegendTry(botColor) {

@@ -15,6 +15,7 @@ function lgFresh() {
     big: 0, blind: 0,         // 이번 턴에 대기만성을 쓴 색 (blind는 예전 효과, 지금은 안 씀)
     turnNo: 0, darkUntil: 0,  // 지나간 턴 수 (양쪽 합) / 눈 감고 두기 암전이 끝나는 턴
     king: lgPair(null),       // 왕의 귀환: 왕으로 지정한 돌 { r, c, start }
+    chainNext: 0,             // 광대의 한 수로 가로챈 연속 착수: 이 색의 다음 턴에 3번 둠
   };
 }
 // 동기화된 값은 빈 배열·null이 빠져서 오므로 기본 모양에 덮어씀
@@ -26,7 +27,7 @@ function lgNorm(d) {
   }
   if (d.lostPos) for (const p of [BLACK, WHITE]) out.lostPos[p] = Array.isArray(d.lostPos[p]) ? d.lostPos[p].slice() : (d.lostPos[p] ? Object.values(d.lostPos[p]) : []);
   out.plies = d.plies || 0; out.big = d.big || 0; out.blind = d.blind || 0;
-  out.turnNo = d.turnNo || 0; out.darkUntil = d.darkUntil || 0;
+  out.turnNo = d.turnNo || 0; out.darkUntil = d.darkUntil || 0; out.chainNext = d.chainNext || 0;
   if (d.king) for (const p of [BLACK, WHITE]) out.king[p] = d.king[p] && typeof d.king[p] === 'object' ? d.king[p] : null;
   return out;
 }
@@ -126,7 +127,7 @@ function lgProgress(p) {
     }
     case 'latebloom': return { ok: lg.plies >= 40, text: t('lg.p.latebloom', { n: Math.min(lg.plies, 40) }) };
     case 'blind': return { ok: lg.far[p] >= 3 && !isDark(), text: t('lg.p.blind', { n: Math.min(lg.far[p], 3) }) };
-    case 'clown': return { ok: lg.lost[p] >= 3, text: t('lg.p.clown', { n: Math.min(lg.lost[p], 3) }) };
+    case 'clown': return { ok: false, text: lg.lost[p] >= 3 ? t('lg.p.clownArmed') : t('lg.p.clown', { n: Math.min(lg.lost[p], 3) }) }; // 대응 카드: 상대가 카드를 쓸 때 자동
     case 'chicken': { const a = longestRun(p).len, b = longestRun(opp).len; return { ok: a >= 3 && b >= 3, text: t('lg.p.chicken', { a, b }) }; }
     case 'sloth': return { ok: lg.edge[p] >= 6 && hand[p].length > 0, text: t('lg.p.sloth', { n: Math.min(lg.edge[p], 6) }) };
     case 'mirror': {
@@ -207,12 +208,11 @@ function useLegend(p, after) {
       addLog(L('lg.bigOn', C));
       break;
     case 'blind':
-      // 사용한 턴부터 3턴 동안 양쪽 모두 판이 어두워짐
+      // 사용한 턴부터 5턴 동안 양쪽 모두 판이 어두워짐
       finish();
-      lg.darkUntil = lg.turnNo + 3;
+      lg.darkUntil = lg.turnNo + 5;
       addLog(L('lg.blindOn', C));
       break;
-    case 'clown': finish(); lgClown(p); break;
     case 'sloth':
       // 패의 카드를 모두 즉시 발동 (대상은 모두 무작위) — 발동이 다 끝난 뒤 after
       finish();
@@ -268,29 +268,52 @@ function useLegend(p, after) {
   if (after) after();
 }
 
-// 🗿 희생한 돌 3개를 고른 뒤: 상대 돌이 가장 많은 줄을 분쇄
-function lgObeliskResolve(p, picks) {
+// 🗿 거신병: 희생할 돌 3개를 고른 뒤 가로줄 또는 세로줄 하나를 골라 그 줄의 상대 돌을 모두 분쇄
+function lgObeliskLine(dir, i) {
+  return Array.from({ length: SIZE }, (_, k) => dir === 'row' ? { r: i, c: k } : { r: k, c: i });
+}
+function lgObeliskHits(p, line) {
+  const opp = other(p);
+  return lgObeliskLine(line.dir, line.i).filter(q => board[q.r][q.c] === opp && !isProtected(q.r, q.c));
+}
+// 봇용: 상대 돌을 가장 많이 부수는 가로/세로줄
+function lgObeliskBestLine(p) {
+  let best = { dir: 'row', i: 0 }, bestN = -1;
+  for (let i = 0; i < SIZE; i++) for (const dir of ['row', 'col']) {
+    const n = lgObeliskHits(p, { dir, i }).length;
+    if (n > bestN || (n === bestN && Math.random() < 0.3)) { best = { dir, i }; bestN = n; }
+  }
+  return best;
+}
+function lgObeliskAsk(tg, r, c) {
+  const p = tg.forPlayer;
+  const nRow = lgObeliskHits(p, { dir: 'row', i: r }).length, nCol = lgObeliskHits(p, { dir: 'col', i: c }).length;
+  showChoicePrompt('🗿', t('lg.obeliskAsk'), [
+    { label: t('lg.obeliskRow', { n: nRow }), value: { dir: 'row', i: r }, main: nRow >= nCol },
+    { label: t('lg.obeliskCol', { n: nCol }), value: { dir: 'col', i: c }, main: nCol > nRow },
+    { label: t('cancel'), value: null },
+  ], (line) => { if (line && pendingTarget === tg) lgObeliskFinish(tg, line); });
+}
+function lgObeliskFinish(tg, line) {
+  const p = tg.forPlayer;
+  lgFinish(p);
+  const lc = lgCard(p);
+  addLog(L('lg.used', { color: p, icon: lc.icon, card: lc.id }));
+  lgObeliskResolve(p, tg.picks, line);
+  pendingTarget = null;
+  resetStatusAfterTarget();
+  updateStatus(); updatePips(); updateHandUI(); draw();
+  endIfBoardWin(true);
+  if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+}
+function lgObeliskResolve(p, picks, line) {
   const opp = other(p);
   picks.forEach(q => lgRemoveStone(q.r, q.c));
-  const lines = [];
-  for (let i = 0; i < SIZE; i++) {
-    lines.push(Array.from({ length: SIZE }, (_, k) => ({ r: i, c: k })));
-    lines.push(Array.from({ length: SIZE }, (_, k) => ({ r: k, c: i })));
-  }
-  for (let s = 0; s < SIZE * 2 - 1; s++) {
-    const d1 = [], d2 = [];
-    for (let r = 0; r < SIZE; r++) { const c1 = s - r, c2 = r - (s - SIZE + 1); if (inBoard(r, c1)) d1.push({ r, c: c1 }); if (inBoard(r, c2)) d2.push({ r, c: c2 }); }
-    lines.push(d1, d2);
-  }
-  let best = [], bestN = 0;
-  for (const line of lines) {
-    const hits = line.filter(q => board[q.r][q.c] === opp && !isProtected(q.r, q.c));
-    if (hits.length > bestN || (hits.length === bestN && hits.length > 0 && Math.random() < 0.5)) { best = hits; bestN = hits.length; }
-  }
-  if (!bestN) { addLog(L('lg.obeliskNone', { color: p })); return; }
-  best.forEach(q => { lgRemoveStone(q.r, q.c); lgLose(opp, q.r, q.c); });
+  const hits = lgObeliskHits(p, line);
+  if (!hits.length) { addLog(L('lg.obeliskNone', { color: p })); return; }
+  hits.forEach(q => { lgRemoveStone(q.r, q.c); lgLose(opp, q.r, q.c); });
   pruneInvalidTraps(); triggerBoardShake();
-  addLog(L('lg.obeliskDone', { color: p, n: bestN }));
+  addLog(L(line.dir === 'row' ? 'lg.obeliskDoneRow' : 'lg.obeliskDoneCol', { color: p, n: hits.length }));
 }
 // 🧘 상대 패를 모두 버리게 하고 그만큼 받음 (멀티: 상대 화면에 요청)
 function lgNothing(p) {
@@ -303,45 +326,6 @@ function lgNothing(p) {
   hand[opp] = [];
   for (let i = 0; i < n; i++) grantRandomCard(p);
   addLog(L('lg.nothingDone', { color: p, n }));
-}
-// 🤡 잃은 돌을 제자리로 (그 자리의 상대 돌은 가까운 빈 칸으로 밀어냄)
-function lgClown(p) {
-  const opp = other(p);
-  let n = 0;
-  for (const q of lg.lostPos[p]) {
-    const v = board[q.r][q.c];
-    if (v === p || v === WALL) continue;
-    if (v === opp) {
-      if (isProtected(q.r, q.c)) continue;
-      board[q.r][q.c] = EMPTY;
-      if (lgWouldWin(q.r, q.c, p)) { board[q.r][q.c] = opp; continue; }
-      board[q.r][q.c] = opp;
-      const dest = lgNearestEmpty(q.r, q.c, opp);
-      if (!dest) continue;
-      lgMoveStone(q.r, q.c, dest.r, dest.c);
-    } else if (lgWouldWin(q.r, q.c, p)) continue;
-    board[q.r][q.c] = p;
-    craterList = craterList.filter(cr => !(cr.r === q.r && cr.c === q.c));
-    moveHistory.push({ r: q.r, c: q.c, player: p });
-    n++;
-  }
-  lg.lostPos[p] = [];
-  pruneInvalidTraps();
-  addLog(L('lg.clownDone', { color: p, n }));
-}
-// (r,c)에서 가장 가까운 빈 칸 (구멍 제외, 그 돌 주인이 승리 줄을 완성하지 않는 칸)
-function lgNearestEmpty(r, c, owner) {
-  for (let d = 1; d < SIZE; d++) {
-    const ring = [];
-    for (let rr = r - d; rr <= r + d; rr++) for (let cc = c - d; cc <= c + d; cc++) {
-      if (Math.max(Math.abs(rr - r), Math.abs(cc - c)) !== d || !inBoard(rr, cc)) continue;
-      if (board[rr][cc] !== EMPTY || isCrater(rr, cc)) continue;
-      ring.push({ r: rr, c: cc });
-    }
-    const ok = shuffle(ring).filter(q => { const v = board[r][c]; board[r][c] = EMPTY; const w = lgWouldWin(q.r, q.c, owner); board[r][c] = v; return !w; });
-    if (ok.length) return ok[0];
-  }
-  return null;
 }
 // 🍗 동전 던지기: 진 쪽의 가장 긴 줄이 사라짐
 function lgChicken(p) {
@@ -544,6 +528,7 @@ function askCounter(user, card, cb) {
     syncPublicState();
     return;
   }
+  if (clownArmed(holder)) { clownSteal(holder, card, () => cb(true)); return; } // 🤡 자동: 무효화 + 내가 즉시 시전
   if (!counterHolderCan(holder)) { cb(false); return; }
   if (mode === 'bot' && holder !== myColor) {
     const yes = botCounterDecision(holder, card.id);
@@ -597,14 +582,56 @@ function handleCounterSync(data) {
       if (yes) savePrivateState();
     };
     const card = findAnyCard(rq.card);
-    if (counterHolderCan(myColor) && card) showCounterPrompt(myColor, card, (yes) => { const n = yes ? applyCounter(myColor, rq.card) : 0; reply(yes, n); });
+    if (clownArmed(myColor) && card) {
+      // 🤡 내 화면에서 가로챈 카드를 먼저 시전하고, 그 상태와 함께 '무효' 응답을 보냄
+      clownSteal(myColor, card, () => {
+        mpCounterRes = { id: rq.id, nullify: true, clown: true, n: 0 };
+        syncPublicState(); savePrivateState();
+      });
+    } else if (counterHolderCan(myColor) && card) showCounterPrompt(myColor, card, (yes) => { const n = yes ? applyCounter(myColor, rq.card) : 0; reply(yes, n); });
     else reply(false);
   }
   const rs = data.counterRes;
   if (rs && counterWait && rs.id === counterWait.id) {
-    if (rs.nullify) { const h = other(myColor); lg.done[h] = true; lg.card[h] = 'nothing'; addLog(L('lg.counterDone', { color: h, card: mpCounterReq ? mpCounterReq.card : '', n: rs.n || 0 })); }
+    if (rs.nullify) {
+      const h = other(myColor), cid = mpCounterReq ? mpCounterReq.card : '';
+      lg.done[h] = true; lg.card[h] = rs.clown ? 'clown' : 'nothing';
+      addLog(rs.clown ? L('lg.clownSteal', { color: h, card: cid }) : L('lg.counterDone', { color: h, card: cid, n: rs.n || 0 }));
+    }
     finishCounterWait(rs.id, !!rs.nullify);
   }
+}
+
+// 🤡 광대의 한 수: 내 돌을 3개 이상 잃은 뒤 상대가 카드를 쓰면 자동으로 무효화하고, 그 카드를 내가 즉시 시전 (대상은 무작위)
+function clownArmed(h) { return !!lg && lg.card[h] === 'clown' && !lg.done[h] && lg.lost[h] >= 3; }
+function clownSteal(holder, card, done) {
+  lg.done[holder] = true;
+  if (mode !== 'multiplayer' || holder === myColor) addLog(L('lg.clownSteal', { color: holder, card: card.id }));
+  const src = CARD_POOL.find(c => c.id === card.id);
+  const finish = () => { updateStatus(); updatePips(); updateHandUI(); draw(); done(); };
+  if (!src) { finish(); return; }
+  if (src.type === 'alkkagi') { hand[holder].push(Object.assign({}, src)); trimHand(holder); addLog(L('lg.clownToHand', { color: holder, card: src.id })); finish(); return; } // 손으로 쏴야 해서 패로
+  if (src.type === 'chain_move') { lg.chainNext = holder; addLog(L('lg.clownChain', { color: holder })); finish(); return; } // 내 다음 턴에 3번 둠
+  const copy = Object.assign({}, src);
+  hand[holder].push(copy);
+  const prevRun = slothRun, prevUsed = usedCardThisTurn[holder];
+  if (mode === 'multiplayer') {
+    mpCardFx = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), card: src.id, color: holder };
+    seenCardFxIds.add(mpCardFx.id);
+    syncPublicState();
+  }
+  playCardAnim(src.id, holder, () => {
+    slothRun = { p: holder, passPending: false }; // 상대 턴 중 시전: 차례 확인을 건너뛰고, 턴 종료 효과는 무시 (상대 턴은 그대로)
+    const idx = hand[holder].indexOf(copy);
+    if (idx !== -1) useCard(holder, idx);
+    if (pendingTarget && pendingTarget.forPlayer === holder) resolveBotPendingTarget();
+    if (pendingTarget && pendingTarget.forPlayer === holder) cancelTarget();
+    slothRun = prevRun;
+    usedCardThisTurn[holder] = prevUsed;
+    const i = hand[holder].indexOf(copy);
+    if (i !== -1) hand[holder].splice(i, 1); // 시전하지 못한 카드는 사라짐
+    finish();
+  });
 }
 
 // 🦥 나무늘보: 패의 카드를 모두 즉시 발동 (대상은 모두 무작위, 턴 종료 카드는 다 끝난 뒤 한 번만 처리)

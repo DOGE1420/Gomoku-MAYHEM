@@ -20,7 +20,6 @@ const TIERS = {
   sixsense: { t: 'B', ko: '쓴 쪽 승률 44.4% — 상대의 5목 위협을 무력화', en: 'Used-side win 44.4% — defuses the opponent’s fives' },
   weather: { t: 'C', ko: '든 쪽 승률 45.8% — 맵이 바뀌어도 이득은 운', en: "Holder win 45.8% — changing the map is a gamble" },
   ghost: { t: 'B', ko: '든 쪽 승률 59.3% — 봇은 숨은 돌도 보므로 사람 상대로는 더 셀 수 있음', en: "Holder win 59.3% — bots see hidden stones, so it may be stronger against people" },
-  peek: { t: 'B', ko: '든 쪽 승률 73.1%지만 봇은 엿본 정보를 쓰지 않아 운의 영향이 큼 — 정보만 얻는 카드', en: "Holder win 73.1%, but bots don't use the information, so luck is likely — information only" },
   shield: { t: 'C', ko: '쓴 쪽 승률 31.8% — 지키는 동안 판을 못 움직임', en: 'Used-side win 31.8% — protection without progress' },
   teleport: { t: 'C', ko: '무작위 이동이라 이득이 적음 (표본 적음)', en: 'Random move, little gain (small sample)' },
   meteor: { t: 'D', ko: '쓴 쪽 승률 16.7% — 내 돌이 날아갈 수도 있음', en: 'Used-side win 16.7% — may hit your own stone' },

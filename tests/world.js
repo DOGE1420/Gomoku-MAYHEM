@@ -90,8 +90,6 @@ const openBench = require('./load');
     const out = {};
     fresh(1); put([[3,3],[3,5],[3,7],[3,9]], 2); let i = give(1, 'snipe'); activateCard(1, i); out.snipe = { white: countStones(2), turnPassedTo: current, blackStones: countStones(1) };
     fresh(1); i = give(1, 'double'); activateCard(1, i); out.double = hand[1].length;
-    fresh(1); hand[2] = [CARD_POOL[0], CARD_POOL[1]]; i = give(1, 'peek'); activateCard(1, i); out.peek = { view: peekView && peekView.cards, log: logLines[0] && fmt(logLines[0]) };
-    current = 1; turnPlacementsDone = 1; passTurn(); out.peekCleared = peekView === null;
     fresh(1); put([[6,6],[6,8],[8,7]], 2); put([[7,8]], 1); put([[9,9]], 2); i = give(1, 'giant'); activateCard(1, i); handlePlace({ r: 7, c: 7 });
     out.giant = { block: [board[6][6], board[7][7], board[8][8], board[6][8]], outside: board[9][9], whites: countStones(2), blacks: countStones(1), cur: current, canPlace: placeBlocked(7, 7, 2) || board[7][7] !== 0, giants: world.giants.length, log: fmt(logLines[0]) };
     fresh(2); put([[5,5],[5,6],[5,7],[5,8]], 2); put([[1,1]], 1); out.botGiant = (() => { hand[1] = []; current = 1; const g = bestGiantCell(1); return { r: g.r, c: g.c, blocksWin: g.blocksWin }; })();

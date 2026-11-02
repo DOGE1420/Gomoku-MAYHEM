@@ -27,7 +27,6 @@ function buildPublicState() {
     lg: lg ? Object.assign({}, lg, { card: { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } }) : null, winOver, immune: immuneList,
     lgPick: lg ? { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } : null, // 전설 카드는 쓰기 전까지 '?'로만 공개
     world,
-    peekReq: mpPeekReq, peekRes: mpPeekRes,
     lgReq: mpLgReq, lgRes: mpLgRes, counterReq: mpCounterReq, counterRes: mpCounterRes,
     handN: { [myColor]: (hand[myColor] || []).length, [other(myColor)]: lgOppHandN },
   };
@@ -122,6 +121,7 @@ function activateCard(player, idx, after) {
   const card = hand[player] && hand[player][idx];
   if (!card || cardAnimBusy) return false;
   if (lg) lg.lastCard[player] = card.id; // 따라쟁이가 베낄 카드
+  if (lg) lg.edge[player] = 0; // 🦥 나무늘보: 카드를 쓰는 순간 '카드 안 쓴 턴' 수가 처음부터
   // 🧘 상대가 무소유로 대응하면 이 카드는 무효 (카드는 소모, 차례는 그대로)
   askCounter(player, card, (nullified) => {
     if (nullified) {
@@ -334,7 +334,6 @@ function applyPublicSnapshot(data) {
   if (!spectator) { // 관전자는 요청에 응답하지 않음 (패·함정이 없음)
     handleStealSync(data);
     handleLegendSync(data);
-    handleWorldSync(data);
     handleCounterSync(data);
   }
   lastPublicData = data;
