@@ -27,7 +27,7 @@ function buildPublicState() {
     lg: lg ? Object.assign({}, lg, { card: { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } }) : null, winOver, immune: immuneList,
     lgPick: lg ? { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } : null, // 전설 카드는 쓰기 전까지 '?'로만 공개
     world,
-    peekReq: mpPeekReq, peekRes: mpPeekRes, gift: mpGift,
+    peekReq: mpPeekReq, peekRes: mpPeekRes,
     lgReq: mpLgReq, lgRes: mpLgRes, counterReq: mpCounterReq, counterRes: mpCounterRes,
     handN: { [myColor]: (hand[myColor] || []).length, [other(myColor)]: lgOppHandN },
   };

@@ -374,6 +374,7 @@ function openCardDetail(player, idx) {
 }
 function renderCardDetail() {
   const f = cardDetailFor;
+  cdDesc.style.whiteSpace = '';
   if (f && f.idx === 'legend') { renderLegendDetail(f); return; }
   if (f && f.idx === 'ability') { renderAbilityDetail(f); return; }
   if (f && f.idx === 'map') { renderMapDetail(); return; }
@@ -675,7 +676,7 @@ function draw() {
     ctx.restore();
   }
   // 거신병: 희생으로 고른 돌
-  if (pendingTarget && pendingTarget.type === 'sacrifice') {
+  if (pendingTarget && (pendingTarget.type === 'sacrifice' || pendingTarget.type === 'wager')) {
     for (const q of pendingTarget.picks) {
       const p = cellCenter(q.r, q.c);
       ctx.strokeStyle = '#ff5a36'; ctx.lineWidth = 3;
@@ -1060,7 +1061,6 @@ function grantRandomCard(player) {
   hand[player].push(card);
   trimHand(player);
   addLog(L('log.cardGained', { color: player, icon: card.icon, card: card.id }));
-  onCardGained(player, card);
 }
 
 let lastDraft = null;
@@ -1070,10 +1070,9 @@ function legendPicks() {
 }
 // 판 시작: 이번 판 맵 알림
 function logMapStart() {
-  const m = mapInfo();
-  addLog(L('log.mapIs', { icon: m.icon, map: m.id, mapShort: m.id }));
-  const ab = abCard(BLACK);
-  if (ab) addLog(L('log.abIs', { icon: ab.icon, card: ab.id }));
+  const m = mapInfo(), ab = abCard(BLACK);
+  if (ab) addLog(L('log.traitIs', { icon: m.icon, map: m.id, mapShort: m.id, aicon: ab.icon, card: ab.id }));
+  else addLog(L('log.mapIs', { icon: m.icon, map: m.id, mapShort: m.id }));
 }
 // 게임 시작: 각자 전설 카드를 고름 (시작 능력은 판마다 무작위로 양쪽 공통)
 function makeStartupQueue(players) {
@@ -1170,7 +1169,6 @@ function pickCardIntoHand(card) {
   hand[p].push(card);
   trimHand(p);
   addLog(L('log.cardGainedHand', { color: p, icon: card.icon, card: card.id }));
-  onCardGained(p, card);
   draftOverlay.classList.remove('show');
   draftOpen = false;
   if (mode === 'multiplayer') savePrivateState();
@@ -1545,16 +1543,16 @@ function handleTargetClick(pos) {
     addLog(L('log.shielded'));
     return;
   }
-  if (t.type === 'sacrifice') {
-    // 🗿 거신병: 희생할 내 돌 3개 고르기 (다시 누르면 선택 취소)
+  if (t.type === 'sacrifice' || t.type === 'wager') {
+    // 🗿 거신병: 희생할 돌 / 🎰 올인: 걸 돌 — 내 돌 3개 고르기 (다시 누르면 선택 취소)
     if (board[r][c] !== t.forPlayer) return;
     const i = t.picks.findIndex(q => q.r === r && q.c === c);
     if (i !== -1) t.picks.splice(i, 1); else t.picks.push({ r, c });
-    if (t.picks.length < 3) { enterTargetMode(L('tgt.obelisk', { n: t.picks.length })); draw(); return; }
+    if (t.picks.length < 3) { enterTargetMode(L(t.type === 'wager' ? 'tgt.wager' : 'tgt.obelisk', { n: t.picks.length })); draw(); return; }
     lgFinish(t.forPlayer);
     const lc = lgCard(t.forPlayer);
     addLog(L('lg.used', { color: t.forPlayer, icon: lc.icon, card: lc.id }));
-    lgObeliskResolve(t.forPlayer, t.picks);
+    if (t.type === 'wager') lgAllinStones(t.forPlayer, t.picks); else lgObeliskResolve(t.forPlayer, t.picks);
     resolved = true;
 
   } else if (t.type === 'remove' && board[r][c] === t.opponent) {
@@ -1667,7 +1665,7 @@ function handleTargetClick(pos) {
     resetStatusAfterTarget();
     updateHandUI();
     draw();
-    if (t.type === 'trade' || t.type === 'teleport' || t.type === 'sacrifice') endIfBoardWin(true);
+    if (t.type === 'trade' || t.type === 'teleport' || t.type === 'sacrifice' || t.type === 'wager') endIfBoardWin(true);
     if (t.type === 'trade' && !gameOver) passTurn();
   }
 }

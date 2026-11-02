@@ -96,16 +96,23 @@ const openBench = require('./load');
     const ok = lgProgress(1).ok; activateLegend(1);
     return { ok, hand: hand[1].map(c => c.id), used: usedCardThisTurn[1], cur: current };
   })()`);
-  // 올인
+  // 올인: 패 전부 또는 돌 3개를 걸고 50% 잭팟이면 2배로
   res.allin = await ev(`(() => { ${setup}
-    let win = 0, lose = 0;
-    for (let i = 0; i < 30; i++) {
-      fresh(1); lg.card[1] = 'allin'; hand[1] = [0,1,2,3].map(i => CARD_POOL[i]);
-      put([[0,0],[0,2],[0,4],[0,6]], 1); put([[9,0],[9,2],[9,4],[9,6],[9,8],[9,10]], 2);
-      activateLegend(1);
-      if (countStones(2) === 3) win++; else if (countStones(1) === 2) lose++;
+    const cards = { win: 0, lose: 0 }, stones = { win: 0, lose: 0 };
+    for (let k = 0; k < 30; k++) {
+      fresh(1); lg.card[1] = 'allin'; hand[1] = [CARD_POOL[0], CARD_POOL[1]];
+      activateLegend(1); // 돌이 없으면 바로 패를 검
+      if (hand[1].length === 4) cards.win++; else if (hand[1].length === 0) cards.lose++;
     }
-    return { win, lose, hand: hand[1].length };
+    for (let k = 0; k < 30; k++) {
+      fresh(1); lg.card[1] = 'allin'; hand[1] = []; put([[7,7],[7,9],[9,7],[3,3]], 1);
+      activateLegend(1); handleTargetClick({ r: 7, c: 7 }); handleTargetClick({ r: 7, c: 9 }); handleTargetClick({ r: 9, c: 7 });
+      const n = countStones(1); if (n === 7) stones.win++; else if (n === 1) stones.lose++;
+    }
+    fresh(1); lg.card[1] = 'allin'; hand[1] = [CARD_POOL[0]]; put([[7,7],[7,9],[9,7]], 1);
+    activateLegend(1); const asked = !document.getElementById('counter-box').hidden, buttons = document.querySelectorAll('#counter-box .counter-actions button').length;
+    document.querySelectorAll('#counter-box .counter-actions button')[2].click();
+    return { cards, stones, asked, buttons, cancelledDone: lg.done[1], restored: document.querySelectorAll('#counter-box .counter-actions button').length };
   })()`);
   // 토끼와 거북이
   res.turtle = await ev(`(() => { ${setup}

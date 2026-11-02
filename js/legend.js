@@ -133,10 +133,10 @@ function lgProgress(p) {
       const lc = lg.lastCard[opp];
       return { ok: !!lc, text: lc ? t('lg.p.mirrorCard', { card: lc }) : t('lg.p.mirror') };
     }
-    case 'allin': {
+    case 'allin': { // 돌 3개 또는 패 전부를 걸 수 있으면 사용 가능
       const hidden = mode === 'multiplayer' && p !== myColor;
-      const n = hidden ? (spectator ? specHandN[p] || 0 : lgOppHandN) : hand[p].length;
-      return { ok: !hidden && n >= handLimit(p), text: t('lg.p.allin', { n, max: handLimit(p) }) };
+      const n = hidden ? (spectator ? specHandN[p] || 0 : lgOppHandN) : hand[p].length, st = countStones(p);
+      return { ok: !hidden && (n > 0 || st >= 3), text: t('lg.p.allin', { n, s: st }) };
     }
     case 'turtle': { const d = countStones(opp) - countStones(p); return { ok: d >= 5 && !winOver[p], text: t('lg.p.turtle', { n: Math.max(0, Math.min(d, 5)) }) }; }
     case 'king': {
@@ -234,7 +234,26 @@ function useLegend(p, after) {
       pendingTarget = { type: 'kingPick', forPlayer: p, legend: true };
       enterTargetMode(L('tgt.king'));
       break;
-    case 'allin': finish(); lgAllin(p); break;
+    case 'allin': {
+      // 무엇을 걸지 고름: 패 전부 또는 내 돌 3개 (봇은 패가 2장 이상이면 패, 아니면 돌)
+      const canCards = hand[p].length > 0, canStones = countStones(p) >= 3;
+      const go = (kind) => {
+        if (kind === 'cards') { finish(); lgAllinCards(p); }
+        else if (kind === 'stones') { pendingTarget = { type: 'wager', forPlayer: p, legend: true, picks: [] }; enterTargetMode(L('tgt.wager', { n: 0 })); }
+        updateStatus(); updatePips(); updateHandUI(); draw();
+        if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+        if (after) after();
+      };
+      if (botLegendTurn) { go(hand[p].length >= 2 || !canStones ? 'cards' : 'stones'); return; }
+      if (canCards && canStones) {
+        showChoicePrompt('🎰', t('lg.allinAsk'), [
+          { label: t('lg.allinCards', { n: hand[p].length }), value: 'cards', main: true },
+          { label: t('lg.allinStones'), value: 'stones' },
+          { label: t('cancel'), value: null },
+        ], go);
+      } else go(canCards ? 'cards' : 'stones');
+      return;
+    }
     case 'turtle':
       finish();
       winOver[p] = 4;
@@ -352,16 +371,54 @@ function lgSloth(p) {
   addLog(L('lg.slothDone', { color: p, n }));
 }
 // 🎰 패를 모두 버리고 동전: 상대 돌 절반 or 내 돌 절반
-function lgAllin(p) {
+// 🎰 올인 (패 걸기): 패를 모두 걸고 50% 잭팟이면 건 장수의 2배를 받음, 꽝이면 잃음
+function lgAllinCards(p) {
+  const n = hand[p].length;
   hand[p] = [];
-  const win = Math.random() < 0.5;
-  const victim = win ? other(p) : p;
-  const all = listStones(victim);
-  const pool = shuffle(all.filter(q => !isProtected(q.r, q.c)));
-  const n = Math.min(pool.length, Math.floor(all.length / 2));
-  pool.slice(0, n).forEach(q => { lgRemoveStone(q.r, q.c); lgLose(victim, q.r, q.c); });
-  pruneInvalidTraps(); triggerBoardShake();
-  addLog(L(win ? 'lg.allinWin' : 'lg.allinLose', { color: p, n }));
+  if (Math.random() < 0.5) {
+    for (let k = 0; k < n * 2; k++) grantRandomCard(p); // 패 한도를 넘으면 오래된 카드부터 버려짐
+    addLog(L('lg.allinCardsWin', { color: p, n, m: n * 2 }));
+  } else addLog(L('lg.allinCardsLose', { color: p, n }));
+}
+// 🎰 올인 (돌 걸기): 고른 돌 3개를 걸고 50% 잭팟이면 제자리로 돌아오고 주변에 3개 더, 꽝이면 잃음 (승리 줄이 되는 칸은 건너뜀)
+function lgAllinStones(p, picks) {
+  picks.forEach(q => lgRemoveStone(q.r, q.c));
+  if (Math.random() >= 0.5) { pruneInvalidTraps(); addLog(L('lg.allinStonesLose', { color: p })); return; }
+  let n = 0;
+  const put = (r, c) => { board[r][c] = p; moveHistory.push({ r, c, player: p }); n++; };
+  for (const q of picks) if (board[q.r][q.c] === EMPTY && !lgWouldWin(q.r, q.c, p)) put(q.r, q.c);
+  const near = [];
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if (board[r][c] !== EMPTY || placeBlocked(r, c, p)) continue;
+    let adj = false;
+    for (let dr = -1; dr <= 1 && !adj; dr++) for (let dc = -1; dc <= 1 && !adj; dc++) if ((dr || dc) && inBoard(r + dr, c + dc) && board[r + dr][c + dc] === p) adj = true;
+    if (adj) near.push({ r, c });
+  }
+  let extra = 0;
+  for (const q of shuffle(near)) { if (extra >= picks.length) break; if (board[q.r][q.c] === EMPTY && !lgWouldWin(q.r, q.c, p)) { put(q.r, q.c); extra++; } }
+  pruneInvalidTraps();
+  addLog(L('lg.allinStonesWin', { color: p, n }));
+}
+// 여러 개 중 하나를 고르는 창 (무소유 대응 창을 같이 씀)
+function showChoicePrompt(icon, text, options, cb) {
+  cardAnimBusy = true;
+  counterBox.querySelector('.counter-icon').textContent = icon;
+  counterText.textContent = text;
+  const actions = counterBox.querySelector('.counter-actions');
+  actions.innerHTML = '';
+  options.forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'plain' + (o.main ? ' counter-yes' : ''); b.textContent = o.label;
+    b.addEventListener('click', () => { counterBox.hidden = true; cardAnimBusy = false; restoreCounterButtons(); cb(o.value); });
+    actions.appendChild(b);
+  });
+  counterBox.hidden = false;
+}
+function restoreCounterButtons() {
+  const actions = counterBox.querySelector('.counter-actions');
+  actions.innerHTML = '';
+  actions.append(counterYesBtn, counterNoBtn);
+  counterBox.querySelector('.counter-icon').textContent = '🧘';
 }
 // 👑 첫 돌 주변 8칸을 내 돌로
 function lgKing(p) {
