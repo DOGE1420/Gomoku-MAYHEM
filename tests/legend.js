@@ -8,9 +8,9 @@ const openBench = require('./load');
   res.startDraft = await ev(`(() => {
     mode = 'local'; init();
     const a = { open: draftOpen, player: draftPlayer, picks: lastDraft.picks.map(c => c.id), legend: lastDraft.picks.every(c => c.legend), title: draftTitle.textContent };
-    pickCardIntoHand(lastDraft.picks[0]); pickCardIntoHand(lastDraft.picks[0]); // 흑 전설 → 흑 시작 능력
+    pickCardIntoHand(lastDraft.picks[0]); // 흑 전설
     const b = { open: draftOpen, player: draftPlayer, picks: lastDraft.picks.map(c => c.id) };
-    pickCardIntoHand(lastDraft.picks[1]); pickCardIntoHand(lastDraft.picks[0]);
+    pickCardIntoHand(lastDraft.picks[1]); // 백 전설
     return { a, b, cards: lg.card, hands: [hand[1].length, hand[2].length], q: startupQueue, slot: document.getElementById('legend-slot-1').textContent };
   })()`);
   // 이후 카드 선택에는 전설 카드가 안 나옴 (300번)
@@ -126,6 +126,16 @@ const openBench = require('./load');
   res.urgent = await ev(`(() => { ${setup}
     fresh(1); winOver[2] = 4; put([[4,4],[4,5],[4,6]], 2); board[4][3] = 1;
     return lgUrgentMove(1);
+  })()`);
+  // 전설 카드 비공개: 봇전에서 봇의 전설은 쓰기 전까지 안 보이고, 쓰면 공개
+  res.hidden = await ev(`(() => { ${setup}
+    fresh(1); mode = 'bot'; myColor = 1; lg.card[1] = 'king'; lg.card[2] = 'obelisk'; updateHandUI();
+    const before = { mine: document.getElementById('legend-slot-1').textContent, bot: document.getElementById('legend-slot-2').textContent };
+    lg.done[2] = true; updateHandUI();
+    const after = document.getElementById('legend-slot-2').textContent;
+    mode = 'local'; current = 1; lg.done[2] = false; updateHandUI();
+    const local = { cur: document.getElementById('legend-slot-1').textContent, other: document.getElementById('legend-slot-2').textContent };
+    return { before, after, local };
   })()`);
   res.errors = errors;
   console.log(JSON.stringify(res, null, 1));

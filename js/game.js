@@ -235,7 +235,7 @@ function init() {
   cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
   skipNextTurn = { [BLACK]: false, [WHITE]: false };
   lgReset();
-  worldReset(tut ? 'classic' : undefined);
+  worldReset(tut ? 'classic' : undefined, tut ? null : undefined);
   mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
   mpShakeSeq = 0; lastSeenShakeSeq = 0;
   mpRestartSeq = 0; lastSeenRestartSeq = 0;
@@ -408,7 +408,7 @@ cdUse.addEventListener('click', () => {
 
 function renderLegendDetail(f) {
   const card = lgCard(f.player);
-  if (!card || card.id !== f.id) { closeCardDetail(); return; }
+  if (!card || card.id !== f.id || !legendVisibleTo(f.player)) { closeCardDetail(); return; }
   const pr = lgProgress(f.player);
   cdIcon.textContent = card.icon; cdName.textContent = cardName(card) + ' · ' + t('lg.badge');
   cdShort.textContent = cardShort(card); cdDesc.textContent = cardDesc(card);
@@ -431,7 +431,7 @@ function renderLegend(player, container) {
   if (!container) return;
   container.innerHTML = '';
   const appendChip = () => {
-    const ab = abCard(player);
+    const ab = null; // 시작 능력은 양쪽 공통이라 상태 줄의 배지로 표시
     if (ab) {
       // 시작 능력 (양쪽 공개)
       const chip = document.createElement('button');
@@ -441,6 +441,15 @@ function renderLegend(player, container) {
       container.appendChild(chip);
     }
   };
+  if (lg && lg.card[player] && !legendVisibleTo(player)) {
+    // 상대의 전설 카드: 쓰기 전까지는 고른 사실만 보임
+    const hid = document.createElement('div');
+    hid.className = 'legend-btn hidden-legend';
+    hid.innerHTML = `<span class="lgb-icon">🂠</span><span class="lgb-main"><span class="lgb-name">${t('lg.hiddenName')}</span><span class="lgb-prog">${t('lg.hiddenNote')}</span></span><span class="lgb-tag">${t('lg.badge')}</span>`;
+    container.appendChild(hid);
+    appendChip();
+    return;
+  }
   const card = lgCard(player);
   if (!card) { appendChip(); return; }
   const done = lg.done[player], pr = lgProgress(player);
@@ -1044,10 +1053,12 @@ function legendPicks() {
 function logMapStart() {
   const m = mapInfo();
   addLog(L('log.mapIs', { icon: m.icon, map: m.id, mapShort: m.id }));
+  const ab = abCard(BLACK);
+  if (ab) addLog(L('log.abIs', { icon: ab.icon, card: ab.id }));
 }
-// 게임 시작: 각자 전설 카드 → 시작 능력 순서로 고름
+// 게임 시작: 각자 전설 카드를 고름 (시작 능력은 판마다 무작위로 양쪽 공통)
 function makeStartupQueue(players) {
-  return players.flatMap(p => [{ p, kind: 'legend' }, { p, kind: 'ability' }]);
+  return players.map(p => ({ p, kind: 'legend' }));
 }
 function draftPicksFor(player, kind) {
   if (kind === 'legend') return legendPicks();
@@ -1120,10 +1131,12 @@ function pickCardIntoHand(card) {
   if (card.legend) {
     // 전설 카드는 패가 아니라 전설 칸에 (판마다 1장)
     lg.card[p] = card.id;
-    addLog(L('lg.picked', { color: p, icon: card.icon, card: card.id }));
+    // 고른 전설 카드는 상대에게 비공개 (로컬은 같은 화면이라 기록에도 이름을 남기지 않음)
+    const named = mode === 'multiplayer' || (mode === 'bot' && p === myColor);
+    addLog(named ? L('lg.picked', { color: p, icon: card.icon, card: card.id }) : L('lg.pickedHidden', { color: p }));
     draftOverlay.classList.remove('show');
     draftOpen = false;
-    if (mode === 'multiplayer' && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/lgPick', { [p]: card.id }).catch(() => {});
+    if (mode === 'multiplayer' && dbApi && roomCode) { dbApi.updatePath('games/' + roomCode + '/lgPick', { [p]: '?' }).catch(() => {}); savePrivateState(); }
     if (startupQueue) { startupQueue.shift(); runStartupDraft(); }
     else { updateStatus(); updatePips(); updateHandUI(); draw(); }
     return;

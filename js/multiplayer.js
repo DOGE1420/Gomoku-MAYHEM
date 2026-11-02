@@ -24,9 +24,9 @@ function buildPublicState() {
     alkTurnIndex: alkIndexNow,
     alkLaunch: mpAlkLaunch,
     cardFx: mpCardFx,
-    lg, winOver, immune: immuneList,
-    lgPick: lg ? { [BLACK]: lg.card[BLACK], [WHITE]: lg.card[WHITE] } : null,
-    world, abPick: world ? { [BLACK]: world.ab[BLACK], [WHITE]: world.ab[WHITE] } : null,
+    lg: lg ? Object.assign({}, lg, { card: { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } }) : null, winOver, immune: immuneList,
+    lgPick: lg ? { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } : null, // 전설 카드는 쓰기 전까지 '?'로만 공개
+    world,
     peekReq: mpPeekReq, peekRes: mpPeekRes, gift: mpGift,
     lgReq: mpLgReq, lgRes: mpLgRes,
     handN: { [myColor]: (hand[myColor] || []).length, [other(myColor)]: lgOppHandN },
@@ -48,7 +48,7 @@ async function savePrivateState() {
   if (mode !== 'multiplayer' || !dbApi || !roomCode || spectator) return;
   if (privateSyncBusy) { privateSyncQueued = true; return; }
   privateSyncBusy = true;
-  try { await dbApi.setPath('private/' + myUserId + '/games_' + roomCode, { hand: hand[myColor], traps: trapList }); } catch (e) {}
+  try { await dbApi.setPath('private/' + myUserId + '/games_' + roomCode, { hand: hand[myColor], traps: trapList, legend: lg ? lg.card[myColor] : null }); } catch (e) {}
   privateSyncBusy = false;
   if (privateSyncQueued) { privateSyncQueued = false; savePrivateState(); }
 }
@@ -61,6 +61,7 @@ async function loadPrivateState() {
       const data = snap.data() || {};
       hand[myColor] = data.hand || hand[myColor] || [];
       trapList = data.traps || trapList || [];
+      if (data.legend && lg && !lg.card[myColor]) lg.card[myColor] = data.legend; // 비공개 전설 카드는 내 개인 저장소에서 복구
     }
   } catch (e) {}
 }
@@ -298,7 +299,7 @@ function applyPublicSnapshot(data) {
     const pick = data.lgPick || {};
     lg.card[myColor] = myCard;
     lg.card[other(myColor)] = pick[other(myColor)] || lg.card[other(myColor)] || oppPrev;
-    if (myCard && pick[myColor] !== myCard && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/lgPick', { [myColor]: myCard }).catch(() => {});
+    if (myCard && pick[myColor] !== publicLgCard(myColor) && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/lgPick', { [myColor]: publicLgCard(myColor) }).catch(() => {});
     winOver = {};
     if (data.winOver) for (const k of [BLACK, WHITE]) if (data.winOver[k]) winOver[k] = data.winOver[k];
     immuneList = Array.isArray(data.immune) ? data.immune.slice() : (data.immune ? Object.values(data.immune) : []);
@@ -307,14 +308,10 @@ function applyPublicSnapshot(data) {
   // 맵·시작 능력: 공개 상태를 따르되, 내 시작 능력과 다시 뽑기 횟수는 내 화면이 기준
   if (data.world && !spectator) {
     const opp = other(myColor);
-    const prevMap = world ? world.map : null, myAb = world ? world.ab[myColor] : null, oppAbPrev = world ? world.ab[opp] : null;
+    const prevMap = world ? world.map : null;
     const myRefresh = world ? world.refresh[myColor] : null;
     world = worldNorm(data.world);
-    const ap = data.abPick || {};
-    world.ab[myColor] = myAb;
-    world.ab[opp] = ap[opp] || world.ab[opp] || oppAbPrev;
     if (myRefresh !== null) world.refresh[myColor] = myRefresh;
-    if (myAb && ap[myColor] !== myAb && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/abPick', { [myColor]: myAb }).catch(() => {});
     mapId = world.map;
     if (prevMap !== world.map) logMapStart();
     if (prevMap === null) lastSeenWorldEv = world.evSeq; // 들어오기 전 기록은 다시 보여주지 않음
@@ -451,8 +448,6 @@ function applySpectatorState(data) {
   if (data.world) {
     const prevMap = world ? world.map : null;
     world = worldNorm(data.world);
-    const ap = data.abPick || {};
-    for (const p of [BLACK, WHITE]) world.ab[p] = ap[p] || world.ab[p] || null;
     mapId = world.map;
     if (prevMap !== world.map) logMapStart();
     if (prevMap === null) lastSeenWorldEv = world.evSeq;

@@ -31,7 +31,14 @@ function lgReset() {
   lgHandAtPlace = null; lgUsedThisTurn = false;
   mpLgReq = null; mpLgRes = null; lgOppHandN = 0; napSince = Date.now();
 }
-function lgCard(p) { return lg && lg.card[p] ? LEGEND_POOL.find(c => c.id === lg.card[p]) : null; }
+function lgCard(p) { return lg && lg.card[p] && lg.card[p] !== '?' ? LEGEND_POOL.find(c => c.id === lg.card[p]) : null; }
+// 전설 카드는 쓰기 전까지 상대에게 비공개 ('?' = 상대가 무언가 골랐다는 것만 앎)
+function publicLgCard(p) { return lg && lg.card[p] ? (lg.done[p] ? lg.card[p] : '?') : null; }
+function legendVisibleTo(p) {
+  if (!lg || !lg.card[p] || lg.card[p] === '?') return false;
+  if (lg.done[p]) return true;
+  return mode === 'local' ? p === current : p === myColor;
+}
 function isEdgeCell(r, c) { return r < 2 || c < 2 || r >= SIZE - 2 || c >= SIZE - 2; }
 function countStones(p) { let n = 0; for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === p) n++; return n; }
 function lgFirstAlive(p) { const f = lg && lg.first[p]; return !!(f && board[f.r][f.c] === p); }
