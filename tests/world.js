@@ -19,7 +19,7 @@ const openBench = require('./load');
     const shared = world.ab[1] === world.ab[2] && !!world.ab[1];
     worldReset('classic', 'retry'); const retry = [world.refresh[1], world.refresh[2]];
     const seen = new Set(); for (let k = 0; k < 200; k++) { worldReset('classic'); seen.add(world.ab[1]); }
-    return { seq, refresh: [r0, r1, btn0, before !== after], shared, retry, abilitiesSeen: seen.size, q: startupQueue, logs: logLines.map(fmt).filter(l => l.includes('맵') || l.includes('시작 능력')) };
+    return { seq, refresh: [r0, r1, btn0, before !== after], shared, retry, abilitiesSeen: seen.size, q: startupQueue, logs: logLines.map(fmt).filter(l => l.includes('맵') || l.includes('시작 특성')) };
   })()`);
   // 행운(4장 중), 넉넉한 주머니(5장)
   res.abilities = await ev(`(() => { ${setup}
@@ -29,12 +29,6 @@ const openBench = require('./load');
     for (let i = 0; i < 6; i++) grantRandomCard(2);
     for (let i = 0; i < 6; i++) grantRandomCard(1);
     return { clover: n1, normal: n2, pouchHand: hand[2].length, normalHand: hand[1].length };
-  })()`);
-  // 손버릇: 상대의 첫 카드 복사 (한 번만)
-  res.pickpocket = await ev(`(() => { ${setup}
-    fresh(1); world.ab[2] = 'pickpocket';
-    grantRandomCard(1); const first = hand[1][0].id; grantRandomCard(1);
-    return { first, white: hand[2].map(c => c.id), once: world.pp[2] };
   })()`);
   // 단단한 시작: 처음 3돌 보호
   res.sturdy = await ev(`(() => { ${setup}

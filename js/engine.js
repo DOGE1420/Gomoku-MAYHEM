@@ -1473,7 +1473,7 @@ function botLegendTry(botColor) {
     botLegendTurn = false;
     const t = pendingTarget;
     if (t && t.forPlayer === botColor) {
-      if (t.type === 'sacrifice') {
+      if (t.type === 'sacrifice' || t.type === 'wager') {
         // 덜 중요한 돌(주변에 내 돌이 적은 돌)부터 희생
         const run = longestRun(botColor).cells;
         const cands = listStones(botColor).filter(q => !run.some(x => x.r === q.r && x.c === q.c)).concat(run);
@@ -1492,7 +1492,7 @@ function botLegendTry(botColor) {
 // 봇의 전설 카드 선택: 봇이 스스로 조건을 채우기 쉬운 카드 우선
 const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth'];
 // 봇의 시작 능력 선택
-const BOT_ABILITY_PRIORITY = ['sturdy', 'pouch', 'clover', 'umbrella', 'pickpocket', 'retry'];
+const BOT_ABILITY_PRIORITY = ['sturdy', 'pouch', 'clover', 'umbrella', 'retry'];
 function botPickDraft(picks, player) {
   if (picks.length && picks[0].ability) {
     if (!botCfg().smartCards) return picks[Math.floor(Math.random() * picks.length)];

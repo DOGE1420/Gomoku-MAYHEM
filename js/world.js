@@ -28,7 +28,6 @@ const ZONE_START = 15, ZONE_EVERY = 5, ZONE_MAX = 3; // 자기장: 15라운드�
 
 // ================= 시작 능력: 게임 시작 때 전설 카드 다음에 1개 (판 내내 자동 적용) =================
 const ABILITY_POOL = [
-  { id: 'pickpocket', icon: '🖐️', name: '손버릇', short: '상대의 첫 카드를 똑같이 받음', desc: '상대가 처음 받은 카드를 똑같이 1장 받습니다.' },
   { id: 'umbrella', icon: '☂️', name: '자연재해 면역', short: '자연재해 없음', desc: '이번 판은 맵 자연재해(녹기·얼음·모래폭풍·쓰나미)가 일어나지 않습니다.' },
   { id: 'pouch', icon: '🎒', name: '넉넉한 주머니', short: '패 5장까지', desc: '패를 5장까지 쥘 수 있습니다.' },
   { id: 'clover', icon: '🍀', name: '행운', short: '카드 4장 중 선택', desc: '카드를 고를 때 4장 중에서 고릅니다.' },
@@ -36,7 +35,6 @@ const ABILITY_POOL = [
   { id: 'retry', icon: '🔁', name: '재도전', short: '다시 뽑기 3회', desc: '카드 다시 뽑기를 3번 쓸 수 있습니다.' },
 ];
 const ABILITY_EN = {
-  pickpocket: { name: 'Pickpocket', short: "Copy the opponent's first card", desc: 'Get a copy of the first card your opponent receives.' },
   umbrella: { name: 'Disaster-proof', short: "No disasters", desc: "This game's map disasters (melting, ice, sandstorms, tsunamis) don't happen." },
   pouch: { name: 'Big Pouch', short: 'Hold up to 5 cards', desc: 'Your hand holds up to 5 cards.' },
   clover: { name: 'Lucky Clover', short: 'Pick from 4 cards', desc: 'Card picks offer 4 cards.' },
@@ -52,9 +50,10 @@ Object.assign(I18N.ko, {
   'log.sandstorm': '🏜️ 모래폭풍! 돌 {n}개가 {dir}으로 밀림', 'dir.up': '위쪽', 'dir.down': '아래쪽', 'dir.left': '왼쪽', 'dir.right': '오른쪽',
   'log.tsunami': '🌊 쓰나미! {dir} 가장자리 3줄의 돌 {n}개가 휩쓸려 감',
   'log.zoneWarn': '⚡ 다음 라운드에 자기장이 줄어듭니다 (바깥 한 줄)', 'log.zone': '⚡ 자기장이 줄어듦 — 바깥 줄의 돌 {n}개가 사라짐',
+  'trait.title': '이번 판 시작 특성', 'log.traitIs': '🎲 이번 판 시작 특성 — 🗺️ {icon} {map}: {mapShort} · {aicon} {card}',
   'ab.shared': '이번 판 양쪽 모두에게 똑같이 적용돼요', 'log.abIs': '🎲 이번 판 시작 능력 (양쪽 모두): {icon} {card}',
   'ab.draftTitle': '{color} — 시작 능력 선택', 'ab.draftSub': '판 내내 자동으로 적용되는 능력 1개를 고르세요', 'ab.badge': '시작 능력',
-  'ab.picked': '{color}: 시작 능력 {icon} {card} 선택', 'log.pickpocket': '{color}: 🖐️ 손버릇 — 상대의 첫 카드 {card}를 똑같이 받음',
+  'ab.picked': '{color}: 시작 능력 {icon} {card} 선택',
   'draft.refresh': '🔄 다시 뽑기 ({n}회 남음)', 'log.refresh': '{color}: 🔄 카드 다시 뽑기',
   'log.snipeDone': '{color}: 🎯 저격 — 상대 돌 {n}개 제거 (턴 종료)', 'log.doubleDone': '{color}: 🎁 1+1 — 카드 2장 획득',
   'log.peekShow': '{color}: 🔍 상대 패 — {list}', 'log.peekEmpty': '{color}: 🔍 상대 패가 비어 있음', 'log.peeked': '🔍 상대가 내 패를 엿봤습니다',
@@ -69,9 +68,10 @@ Object.assign(I18N.en, {
   'log.sandstorm': '🏜️ Sandstorm! {n} stone(s) pushed {dir}', 'dir.up': 'up', 'dir.down': 'down', 'dir.left': 'left', 'dir.right': 'right',
   'log.tsunami': '🌊 Tsunami! {n} stone(s) on the 3 lines by the {dir} edge were swept away',
   'log.zoneWarn': '⚡ The zone closes next round (outer ring)', 'log.zone': '⚡ The zone closed — {n} stone(s) on the outer ring vanished',
+  'trait.title': "This game's start traits", 'log.traitIs': '🎲 Start traits — 🗺️ {icon} {map}: {mapShort} · {aicon} {card}',
   'ab.shared': 'Applies to both players this game', 'log.abIs': '🎲 Starting ability this game (both players): {icon} {card}',
   'ab.draftTitle': '{color} — Pick a starting ability', 'ab.draftSub': 'One passive ability that lasts the whole game', 'ab.badge': 'Ability',
-  'ab.picked': '{color}: picked ability {icon} {card}', 'log.pickpocket': "{color}: 🖐️ Pickpocket — copied the opponent's first card, {card}",
+  'ab.picked': '{color}: picked ability {icon} {card}',
   'draft.refresh': '🔄 Reroll ({n} left)', 'log.refresh': '{color}: 🔄 rerolled the cards',
   'log.snipeDone': '{color}: 🎯 Snipe — removed {n} enemy stone(s) (turn ends)', 'log.doubleDone': '{color}: 🎁 1+1 — got 2 cards',
   'log.peekShow': "{color}: 🔍 opponent's hand — {list}", 'log.peekEmpty': "{color}: 🔍 the opponent's hand is empty", 'log.peeked': '🔍 Your opponent peeked at your hand',
@@ -85,7 +85,7 @@ let mapId = 'classic';  // checkWin(우주 웜홀)과 계산용 작업자도 씀
 let world = null;       // { map, round, frozen[], zone, hidden[], ab{}, pp{}, sturdy{}, refresh{} } — 멀티플레이 공개 상태
 let wNext = { giant: 0, ghost: 0 }; // 이번 턴 다음 착수에 붙는 효과 (그 색)
 let peekView = null;    // { by, cards[] } — 엿보기로 본 상대 패 (내 턴 끝까지)
-let mpPeekReq = null, mpPeekRes = null, mpGift = null, lastSeenPeekReqId = null, lastSeenPeekResId = null, lastSeenGiftId = null;
+let mpPeekReq = null, mpPeekRes = null, lastSeenPeekReqId = null, lastSeenPeekResId = null;
 
 function randomMapId() { return MAP_POOL[Math.floor(Math.random() * MAP_POOL.length)].id; }
 function mapInfo(id) { return MAP_POOL.find(m => m.id === (id || mapId)) || MAP_POOL[0]; }
@@ -93,7 +93,7 @@ function mapName(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.i
 function mapShort(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.id] ? MAP_EN[m.id].short : m.short; }
 function mapDesc(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.id] ? MAP_EN[m.id].desc : m.desc; }
 function worldFresh(map) {
-  return { map, round: 0, frozen: [], zone: 0, hidden: [], giants: [], ab: lgPair(null), pp: lgPair(false), sturdy: lgPair(0), refresh: lgPair(1), ev: [], evSeq: 0 };
+  return { map, round: 0, frozen: [], zone: 0, hidden: [], giants: [], ab: lgPair(null), sturdy: lgPair(0), refresh: lgPair(1), ev: [], evSeq: 0 };
 }
 function worldNorm(d) {
   const out = worldFresh(d && d.map ? d.map : 'classic');
@@ -101,7 +101,7 @@ function worldNorm(d) {
   out.round = d.round || 0; out.zone = d.zone || 0;
   const arr = v => Array.isArray(v) ? v.slice() : (v ? Object.values(v) : []);
   out.frozen = arr(d.frozen); out.hidden = arr(d.hidden); out.giants = arr(d.giants); out.ev = arr(d.ev); out.evSeq = d.evSeq || 0;
-  for (const k of ['ab', 'pp', 'sturdy', 'refresh']) if (d[k]) for (const p of [BLACK, WHITE]) if (d[k][p] !== undefined) out[k][p] = d[k][p];
+  for (const k of ['ab', 'sturdy', 'refresh']) if (d[k]) for (const p of [BLACK, WHITE]) if (d[k][p] !== undefined) out[k][p] = d[k][p];
   return out;
 }
 // 시작 능력: 판마다 무작위 1개가 양쪽에 똑같이 적용
@@ -113,7 +113,7 @@ function worldReset(map, ability) {
   world.ab = lgPair(ab);
   if (ab === 'retry') world.refresh = lgPair(3);
   wNext = { giant: 0, ghost: 0 }; peekView = null; lastSeenWorldEv = 0;
-  mpPeekReq = null; mpPeekRes = null; mpGift = null;
+  mpPeekReq = null; mpPeekRes = null;
 }
 function setMap(id) { world.map = id; mapId = id; }
 // 자연재해·자기장 기록: 멀티플레이에서는 상대 화면에도 같은 기록이 남도록 공개 상태에 최근 몇 개를 함께 실음
@@ -299,23 +299,6 @@ function bestGiantCell(p) {
   }
   return best;
 }
-// 카드를 얻을 때마다 (손버릇)
-function onCardGained(p, card) {
-  if (!world || !card || card.legend || card.ability) return;
-  const opp = other(p);
-  if (abOf(opp) !== 'pickpocket' || world.pp[opp]) return;
-  if (mode === 'multiplayer' && p !== myColor) return; // 멀티: 카드를 얻은 쪽 화면이 알림
-  world.pp[opp] = true;
-  if (mode === 'multiplayer') {
-    mpGift = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: opp, card: card.id };
-    if (dbApi && roomCode) dbApi.updatePath('games/' + roomCode, { gift: mpGift, ['world/pp/' + opp]: true }).catch(() => {});
-    return;
-  }
-  hand[opp].push(card);
-  trimHand(opp);
-  addLog(L('log.pickpocket', { color: opp, card: card.id }));
-}
-
 // ================= 새 카드 =================
 function useWorldCard(player, idx, card) {
   const opp = other(player), C = { color: player };
@@ -398,7 +381,7 @@ if (draftRefreshBtn) draftRefreshBtn.addEventListener('click', () => {
 
 // ================= 멀티플레이: 엿보기 요청/응답, 손버릇 선물 =================
 function handleWorldSync(data) {
-  mpPeekReq = data.peekReq || null; mpPeekRes = data.peekRes || null; mpGift = data.gift || null;
+  mpPeekReq = data.peekReq || null; mpPeekRes = data.peekRes || null;
   const rq = data.peekReq;
   if (rq && rq.id !== lastSeenPeekReqId) {
     lastSeenPeekReqId = rq.id;
@@ -413,32 +396,19 @@ function handleWorldSync(data) {
     lastSeenPeekResId = rs.id;
     showPeek(myColor, Array.isArray(rs.cards) ? rs.cards : (rs.cards ? Object.values(rs.cards) : []));
   }
-  const g = data.gift;
-  if (g && g.id !== lastSeenGiftId && g.to === myColor) {
-    lastSeenGiftId = g.id;
-    const card = CARD_POOL.find(c => c.id === g.card);
-    if (card) { hand[myColor].push(card); trimHand(myColor); addLog(L('log.pickpocket', { color: myColor, card: card.id })); savePrivateState(); }
-  }
 }
 
 // ================= 맵 표시 =================
 const mapBadge = document.getElementById('map-badge');
 const abilityBadge = document.getElementById('ability-badge');
+// 시작 특성 (맵 + 능력) 배지 하나로 표시 — 누르면 설명
 function renderMapBadge() {
-  if (abilityBadge) {
-    const ab = abCard(BLACK);
-    abilityBadge.hidden = !ab || tut;
-    if (ab) abilityBadge.textContent = ab.icon + ' ' + cardName(ab);
-  }
+  if (abilityBadge) abilityBadge.hidden = true;
   if (!mapBadge) return;
-  const m = mapInfo();
+  const m = mapInfo(), ab = abCard(BLACK);
   mapBadge.hidden = !world || tut;
-  mapBadge.textContent = t('map.badge', { icon: m.icon, map: m.id }) + (world && world.round ? ' · ' + t('map.round', { n: world.round }) : '') + (world && world.zone ? ' · ⚡' + world.zone : '');
-}
-if (abilityBadge) {
-  const openAb = () => openCardDetail(BLACK, 'ability');
-  abilityBadge.addEventListener('click', openAb);
-  abilityBadge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAb(); } });
+  mapBadge.textContent = m.icon + ' ' + mapName() + (ab ? ' · ' + ab.icon + ' ' + cardName(ab) : '') +
+    (world && world.round ? ' · ' + t('map.round', { n: world.round }) : '') + (world && world.zone ? ' · ⚡' + world.zone : '');
 }
 if (mapBadge) {
   const open = () => openCardDetail(null, 'map');
@@ -446,11 +416,13 @@ if (mapBadge) {
   mapBadge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
 }
 function renderMapDetail() {
-  const m = mapInfo();
-  cdIcon.textContent = m.icon; cdName.textContent = t('map.title') + ' · ' + mapName();
-  cdShort.textContent = mapShort(); cdDesc.textContent = mapDesc();
+  const m = mapInfo(), ab = abCard(BLACK);
+  cdIcon.textContent = m.icon + (ab ? ab.icon : ''); cdName.textContent = t('trait.title');
+  cdShort.textContent = mapName() + (ab ? ' · ' + cardName(ab) : '');
+  cdDesc.textContent = '🗺️ ' + mapName() + ': ' + mapDesc() + (ab ? '\n🎲 ' + cardName(ab) + ': ' + cardDesc(ab) : '');
+  cdDesc.style.whiteSpace = 'pre-line';
   cdUse.hidden = true; cdClose.textContent = t('cd.close');
-  cdNote.textContent = t('map.zoneNote', { start: ZONE_START, every: ZONE_EVERY, max: ZONE_MAX }) + (world && world.zone ? ' · ' + t('map.zoneNow', { n: world.zone }) : '');
+  cdNote.textContent = t('ab.shared') + ' · ' + t('map.zoneNote', { start: ZONE_START, every: ZONE_EVERY, max: ZONE_MAX }) + (world && world.zone ? ' · ' + t('map.zoneNow', { n: world.zone }) : '');
 }
 function renderAbilityDetail(f) {
   const card = abCard(f.player);
