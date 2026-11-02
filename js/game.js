@@ -472,19 +472,6 @@ function renderLegend(player, container) {
 function renderHand(player, container) {
   container.innerHTML = '';
   const hideContents = mode === 'multiplayer' && player !== myColor;
-  // 엿보기로 본 상대 패 (내 턴이 끝날 때까지)
-  const peek = peekView && peekView.by !== player && (mode === 'local' || peekView.by === myColor) ? peekView.cards : null;
-  if (peek && hideContents) {
-    if (!peek.length) { const span = document.createElement('span'); span.className = 'hand-empty'; span.textContent = t('hand.none'); container.appendChild(span); return; }
-    peek.forEach(id => {
-      const card = findAnyCard(id); if (!card) return;
-      const btn = document.createElement('button');
-      btn.className = 'hand-card peeked'; btn.title = cardDesc(card);
-      btn.innerHTML = `<div class="hc-icon">${card.icon}</div><div class="hc-name">${cardName(card)}</div><div class="hc-desc">${cardShort(card)}</div>`;
-      container.appendChild(btn);
-    });
-    return;
-  }
   // 멀티플레이: 상대 패는 장수만 (내용은 비공개, 관전자는 양쪽 다)
   if (hideContents) {
     const handN = spectator ? (specHandN[player] || 0) : lgOppHandN;
@@ -676,7 +663,7 @@ function draw() {
     ctx.restore();
   }
   // 거신병: 희생으로 고른 돌
-  if (pendingTarget && (pendingTarget.type === 'sacrifice' || pendingTarget.type === 'wager')) {
+  if (pendingTarget && (pendingTarget.type === 'sacrifice' || pendingTarget.type === 'wager' || pendingTarget.type === 'obeliskLine')) {
     for (const q of pendingTarget.picks) {
       const p = cellCenter(q.r, q.c);
       ctx.strokeStyle = '#ff5a36'; ctx.lineWidth = 3;
@@ -929,6 +916,7 @@ function passTurn() {
   turnPlacementsNeeded = 1;
   turnPlacedPositions = [];
   usedCardThisTurn[current] = false;
+  if (lg && lg.chainNext === current) { lg.chainNext = 0; turnPlacementsNeeded = 3; } // 🤡 광대가 가로챈 연속 착수
   if (skipNextTurn[current]) {
     skipNextTurn[current] = false;
     addLog(L('log.skipTurn', { color: current }));
@@ -1549,11 +1537,23 @@ function handleTargetClick(pos) {
     const i = t.picks.findIndex(q => q.r === r && q.c === c);
     if (i !== -1) t.picks.splice(i, 1); else t.picks.push({ r, c });
     if (t.picks.length < 3) { enterTargetMode(L(t.type === 'wager' ? 'tgt.wager' : 'tgt.obelisk', { n: t.picks.length })); draw(); return; }
+    if (t.type === 'sacrifice') {
+      // 🗿 거신병: 희생할 돌을 다 고르면 부술 줄(가로/세로)을 고름 — 봇은 가장 많이 부수는 줄을 바로 고름
+      if (mode === 'bot' && t.forPlayer !== myColor) { lgObeliskFinish(t, lgObeliskBestLine(t.forPlayer)); return; }
+      t.type = 'obeliskLine';
+      enterTargetMode(L('tgt.obeliskLine'));
+      draw();
+      return;
+    }
     lgFinish(t.forPlayer);
     const lc = lgCard(t.forPlayer);
     addLog(L('lg.used', { color: t.forPlayer, icon: lc.icon, card: lc.id }));
-    if (t.type === 'wager') lgAllinStones(t.forPlayer, t.picks); else lgObeliskResolve(t.forPlayer, t.picks);
+    lgAllinStones(t.forPlayer, t.picks);
     resolved = true;
+
+  } else if (t.type === 'obeliskLine') {
+    lgObeliskAsk(t, r, c); // 🗿 고른 칸을 지나는 가로줄/세로줄 중 하나를 고름
+    return;
 
   } else if (t.type === 'remove' && board[r][c] === t.opponent) {
     lgLose(t.opponent, r, c);

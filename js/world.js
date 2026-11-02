@@ -56,7 +56,6 @@ Object.assign(I18N.ko, {
   'ab.picked': '{color}: 시작 능력 {icon} {card} 선택',
   'draft.refresh': '🔄 다시 뽑기 ({n}회 남음)', 'log.refresh': '{color}: 🔄 카드 다시 뽑기',
   'log.snipeDone': '{color}: 🎯 저격 — 상대 돌 {n}개 제거 (턴 종료)', 'log.doubleDone': '{color}: 🎁 1+1 — 카드 2장 획득',
-  'log.peekShow': '{color}: 🔍 상대 패 — {list}', 'log.peekEmpty': '{color}: 🔍 상대 패가 비어 있음', 'log.peeked': '🔍 상대가 내 패를 엿봤습니다',
   'log.giantOn': '{color}: 🪨 거대한 돌 — 다음 착수 자리에 3×3 바위가 떨어짐', 'log.giantDone': '{color}: 🪨 거대한 돌 낙하! 돌 {n}개가 깨짐',
   'log.ghostOn': '{color}: 👻 투명한 돌 — 이번 턴 다음 착수는 상대에게 3라운드 동안 안 보임', 'log.ghostFound': '👻 숨어 있던 투명한 돌을 찾았습니다!', 'log.ghostGone': '👻 투명한 돌이 모습을 드러냄',
   'log.weatherDone': '{color}: 🌦️ 기상 이변 — 맵이 {icon} {map}(으)로 바뀜',
@@ -74,7 +73,6 @@ Object.assign(I18N.en, {
   'ab.picked': '{color}: picked ability {icon} {card}',
   'draft.refresh': '🔄 Reroll ({n} left)', 'log.refresh': '{color}: 🔄 rerolled the cards',
   'log.snipeDone': '{color}: 🎯 Snipe — removed {n} enemy stone(s) (turn ends)', 'log.doubleDone': '{color}: 🎁 1+1 — got 2 cards',
-  'log.peekShow': "{color}: 🔍 opponent's hand — {list}", 'log.peekEmpty': "{color}: 🔍 the opponent's hand is empty", 'log.peeked': '🔍 Your opponent peeked at your hand',
   'log.giantOn': '{color}: 🪨 Giant Stone — a 3×3 boulder drops on your next placement', 'log.giantDone': '{color}: 🪨 The giant stone dropped! {n} stone(s) shattered',
   'log.ghostOn': '{color}: 👻 Ghost Stone — your next stone this turn is invisible to the opponent for 3 rounds', 'log.ghostFound': '👻 You found a hidden ghost stone!', 'log.ghostGone': '👻 A ghost stone became visible',
   'log.weatherDone': '{color}: 🌦️ Weather Shift — the map is now {icon} {map}',
@@ -84,8 +82,6 @@ Object.assign(I18N.en, {
 let mapId = 'classic';  // checkWin(우주 웜홀)과 계산용 작업자도 씀
 let world = null;       // { map, round, frozen[], zone, hidden[], ab{}, pp{}, sturdy{}, refresh{} } — 멀티플레이 공개 상태
 let wNext = { giant: 0, ghost: 0 }; // 이번 턴 다음 착수에 붙는 효과 (그 색)
-let peekView = null;    // { by, cards[] } — 엿보기로 본 상대 패 (내 턴 끝까지)
-let mpPeekReq = null, mpPeekRes = null, lastSeenPeekReqId = null, lastSeenPeekResId = null;
 
 function randomMapId() { return MAP_POOL[Math.floor(Math.random() * MAP_POOL.length)].id; }
 function mapInfo(id) { return MAP_POOL.find(m => m.id === (id || mapId)) || MAP_POOL[0]; }
@@ -112,8 +108,7 @@ function worldReset(map, ability) {
   const ab = ability === undefined ? randomAbilityId() : ability;
   world.ab = lgPair(ab);
   if (ab === 'retry') world.refresh = lgPair(3);
-  wNext = { giant: 0, ghost: 0 }; peekView = null; lastSeenWorldEv = 0;
-  mpPeekReq = null; mpPeekRes = null;
+  wNext = { giant: 0, ghost: 0 }; lastSeenWorldEv = 0;
 }
 function setMap(id) { world.map = id; mapId = id; }
 // 자연재해·자기장 기록: 멀티플레이에서는 상대 화면에도 같은 기록이 남도록 공개 상태에 최근 몇 개를 함께 실음
@@ -148,8 +143,9 @@ function isHiddenFor(r, c, viewer) {
 
 // ================= 라운드 진행 (passTurn에서 차례가 바뀐 뒤) =================
 function worldTurnEnd(p) {
-  wNext = { giant: 0, ghost: 0 };
-  if (peekView && peekView.by === p) peekView = null;
+  // 끝나는 쪽의 '다음 착수' 효과만 정리 (광대의 한 수로 상대 턴에 얻은 효과는 내 턴까지 남음)
+  if (wNext.giant === p) wNext.giant = 0;
+  if (wNext.ghost === p) wNext.ghost = 0;
 }
 function worldRoundTick() {
   if (!world || gameOver || tut) return;
@@ -322,13 +318,6 @@ function useWorldCard(player, idx, card) {
       addLog(L('log.doubleDone', C));
       updateHandUI(); draw();
       return true;
-    case 'peek':
-      spend();
-      if (mode === 'multiplayer') {
-        mpPeekReq = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), by: player };
-      } else showPeek(player, hand[opp].map(c => c.id));
-      updateHandUI(); draw();
-      return true;
     case 'giant':
       spend(); wNext.giant = player;
       addLog(L('log.giantOn', C));
@@ -354,13 +343,6 @@ function useWorldCard(player, idx, card) {
   }
   return false;
 }
-function showPeek(by, ids) {
-  peekView = { by, cards: ids };
-  if (!ids.length) { addLog(L('log.peekEmpty', { color: by })); return; }
-  const list = ids.map(id => { const c = findAnyCard(id); return c ? c.icon + ' ' + cardName(c) : id; }).join(', ');
-  addLog(L('log.peekShow', { color: by, list }));
-}
-
 // ================= 카드 다시 뽑기 =================
 const draftRefreshBtn = document.getElementById('draft-refresh');
 function renderDraftRefresh(player) {
@@ -379,24 +361,6 @@ if (draftRefreshBtn) draftRefreshBtn.addEventListener('click', () => {
   if (mode === 'multiplayer') syncPublicState();
 });
 
-// ================= 멀티플레이: 엿보기 요청/응답, 손버릇 선물 =================
-function handleWorldSync(data) {
-  mpPeekReq = data.peekReq || null; mpPeekRes = data.peekRes || null;
-  const rq = data.peekReq;
-  if (rq && rq.id !== lastSeenPeekReqId) {
-    lastSeenPeekReqId = rq.id;
-    if (rq.by !== myColor && !(data.peekRes && data.peekRes.id === rq.id)) {
-      mpPeekRes = { id: rq.id, to: rq.by, cards: (hand[myColor] || []).map(c => c.id) };
-      addLog(L('log.peeked'));
-      dbApi.updatePath('games/' + roomCode, { peekRes: mpPeekRes }).catch(() => {});
-    }
-  }
-  const rs = data.peekRes;
-  if (rs && rs.id !== lastSeenPeekResId && rs.to === myColor) {
-    lastSeenPeekResId = rs.id;
-    showPeek(myColor, Array.isArray(rs.cards) ? rs.cards : (rs.cards ? Object.values(rs.cards) : []));
-  }
-}
 
 // ================= 맵 표시 =================
 const mapBadge = document.getElementById('map-badge');

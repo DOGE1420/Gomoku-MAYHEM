@@ -5,7 +5,7 @@ const openBench = require('./load');
 (async () => {
   const [kind, id, gamesArg, lvArg, msArg] = process.argv.slice(2);
   const games = Number(gamesArg || 30), lv = Number(lvArg || 5), ms = Number(msArg || 300);
-  const USED = { snipe: 'log.snipeDone', double: 'log.doubleDone', peek: 'log.peekShow', giant: 'log.giantOn', ghost: 'log.ghostOn', weather: 'log.weatherDone' };
+  const USED = { snipe: 'log.snipeDone', double: 'log.doubleDone', giant: 'log.giantOn', ghost: 'log.ghostOn', weather: 'log.weatherDone' };
   const { page, errors, cleanup } = await openBench();
   const r = { kind, id, games: 0, win: 0, loss: 0, draw: 0, stall: 0, used: 0, gamesUsed: 0, usedWin: 0, moves: 0 };
   for (let g = 0; g < games; g++) {
