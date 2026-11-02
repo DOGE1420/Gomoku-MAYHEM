@@ -12,7 +12,9 @@ function lgFresh() {
     lastCard: lgPair(null),   // 각자 마지막으로 쓴 카드 (따라쟁이)
     lost: lgPair(0), lostPos: { [BLACK]: [], [WHITE]: [] }, // 카드 효과로 잃은 돌 (광대의 한 수)
     far: lgPair(0), empty: lgPair(0), edge: lgPair(0), mirror: lgPair(0),
-    big: 0, blind: 0,         // 이번 턴에 대기만성 / 눈 감고 두기를 쓴 색
+    big: 0, blind: 0,         // 이번 턴에 대기만성을 쓴 색 (blind는 예전 효과, 지금은 안 씀)
+    turnNo: 0, darkUntil: 0,  // 지나간 턴 수 (양쪽 합) / 눈 감고 두기 암전이 끝나는 턴
+    king: lgPair(null),       // 왕의 귀환: 왕으로 지정한 돌 { r, c, start }
   };
 }
 // 동기화된 값은 빈 배열·null이 빠져서 오므로 기본 모양에 덮어씀
@@ -24,12 +26,14 @@ function lgNorm(d) {
   }
   if (d.lostPos) for (const p of [BLACK, WHITE]) out.lostPos[p] = Array.isArray(d.lostPos[p]) ? d.lostPos[p].slice() : (d.lostPos[p] ? Object.values(d.lostPos[p]) : []);
   out.plies = d.plies || 0; out.big = d.big || 0; out.blind = d.blind || 0;
+  out.turnNo = d.turnNo || 0; out.darkUntil = d.darkUntil || 0;
+  if (d.king) for (const p of [BLACK, WHITE]) out.king[p] = d.king[p] && typeof d.king[p] === 'object' ? d.king[p] : null;
   return out;
 }
 function lgReset() {
   lg = lgFresh(); winOver = {}; immuneList = [];
   lgHandAtPlace = null; lgUsedThisTurn = false;
-  mpLgReq = null; mpLgRes = null; lgOppHandN = 0; napSince = Date.now();
+  mpLgReq = null; mpLgRes = null; lgOppHandN = 0;
 }
 function lgCard(p) { return lg && lg.card[p] && lg.card[p] !== '?' ? LEGEND_POOL.find(c => c.id === lg.card[p]) : null; }
 // 전설 카드는 쓰기 전까지 상대에게 비공개 ('?' = 상대가 무언가 골랐다는 것만 앎)
@@ -96,6 +100,7 @@ function lgMoveStone(r, c, nr, nc) {
   for (const w of windmillList) if (w.r === r && w.c === c) { w.r = nr; w.c = nc; }
   for (const s of immuneList) if (s.r === r && s.c === c) { s.r = nr; s.c = nc; }
   if (lg && lg.first[v] && lg.first[v].r === r && lg.first[v].c === c) lg.first[v] = { r: nr, c: nc };
+  if (lg && lg.king[v] && lg.king[v].r === r && lg.king[v].c === c) lg.king[v] = Object.assign({}, lg.king[v], { r: nr, c: nc });
   moveHistory = moveHistory.filter(m => !(m.r === r && m.c === c));
   moveHistory.push({ r: nr, c: nc, player: v });
 }
@@ -115,30 +120,36 @@ function lgProgress(p) {
   const opp = other(p);
   switch (id) {
     case 'obelisk': { const n = countStones(p); return { ok: n >= 3 && countStones(opp) > 0, text: t('lg.p.obelisk', { n: Math.min(n, 3) }) }; }
-    case 'nothing': return { ok: false, text: t('lg.p.nothing', { n: Math.min(lg.empty[p], 3) }) };
+    case 'nothing': { // 대응 카드: 상대가 카드를 쓸 때만 (내 패가 있어야 함)
+      const n = mode === 'multiplayer' && p !== myColor ? (spectator ? specHandN[p] || 0 : lgOppHandN) : hand[p].length;
+      return { ok: false, text: t('lg.p.nothing', { n }) };
+    }
     case 'latebloom': return { ok: lg.plies >= 40, text: t('lg.p.latebloom', { n: Math.min(lg.plies, 40) }) };
-    case 'blind': return { ok: lg.far[p] >= 3 && lg.blind !== p, text: t('lg.p.blind', { n: Math.min(lg.far[p], 3) }) };
+    case 'blind': return { ok: lg.far[p] >= 3 && !isDark(), text: t('lg.p.blind', { n: Math.min(lg.far[p], 3) }) };
     case 'clown': return { ok: lg.lost[p] >= 3, text: t('lg.p.clown', { n: Math.min(lg.lost[p], 3) }) };
     case 'chicken': { const a = longestRun(p).len, b = longestRun(opp).len; return { ok: a >= 3 && b >= 3, text: t('lg.p.chicken', { a, b }) }; }
-    case 'sloth': return { ok: false, text: t('lg.p.sloth', { n: Math.min(lg.edge[p], 5) }) };
+    case 'sloth': return { ok: lg.edge[p] >= 6 && hand[p].length > 0, text: t('lg.p.sloth', { n: Math.min(lg.edge[p], 6) }) };
     case 'mirror': {
-      const n = Math.min(lg.mirror[p], 3), lc = lg.lastCard[opp];
-      return { ok: n >= 3 && !!lc && !usedCardThisTurn[p], text: lc ? t('lg.p.mirrorCard', { n, card: lc }) : t('lg.p.mirror', { n }) };
+      const lc = lg.lastCard[opp];
+      return { ok: !!lc, text: lc ? t('lg.p.mirrorCard', { card: lc }) : t('lg.p.mirror') };
     }
-    case 'nap': return { ok: false, text: t('lg.p.nap') };
     case 'allin': {
       const hidden = mode === 'multiplayer' && p !== myColor;
       const n = hidden ? (spectator ? specHandN[p] || 0 : lgOppHandN) : hand[p].length;
       return { ok: !hidden && n >= handLimit(p), text: t('lg.p.allin', { n, max: handLimit(p) }) };
     }
     case 'turtle': { const d = countStones(opp) - countStones(p); return { ok: d >= 5 && !winOver[p], text: t('lg.p.turtle', { n: Math.max(0, Math.min(d, 5)) }) }; }
-    case 'king': { const alive = lgFirstAlive(p); return { ok: alive && lg.plies >= 20, text: t('lg.p.king', { n: Math.min(lg.plies, 20), s: t(alive ? 'lg.alive' : 'lg.dead') }) }; }
+    case 'king': {
+      const k = lg.king[p];
+      if (k) return { ok: false, text: t('lg.p.kingAlive', { n: Math.min(lg.turnNo - k.start, 20) }) };
+      return { ok: countStones(p) > 0, text: t('lg.p.kingPick') };
+    }
   }
   return { ok: false, text: '' };
 }
 function canUseLegend(p) {
   const card = lgCard(p);
-  if (!card || card.auto || lg.done[p]) return false;
+  if (!card || card.auto || card.react || lg.done[p]) return false;
   if (p !== current || gameOver || draftOpen || pendingTarget || alkPhaseActive() || cardAnimBusy || awaitingSide) return false;
   if (mode !== 'local' && p !== myColor && !(mode === 'bot' && p === other(myColor) && botLegendTurn)) return false;
   return lgProgress(p).ok;
@@ -176,11 +187,6 @@ function lgFireAuto(p) {
   }
   if (card.id === 'nothing') lgNothing(p);
   else if (card.id === 'sloth') lgSloth(p);
-  else if (card.id === 'nap') {
-    turnPlacementsNeeded = Math.max(turnPlacementsNeeded, turnPlacementsDone + 2, 2);
-    cardLockNextTurn[other(p)] = true;
-    addLog(L('lg.napDone', { color: p }));
-  }
   playCardAnim(card.id, p, null);
 }
 
@@ -201,22 +207,33 @@ function useLegend(p, after) {
       addLog(L('lg.bigOn', C));
       break;
     case 'blind':
+      // 사용한 턴부터 3턴 동안 양쪽 모두 판이 어두워짐
       finish();
-      lg.blind = p;
+      lg.darkUntil = lg.turnNo + 3;
       addLog(L('lg.blindOn', C));
       break;
     case 'clown': finish(); lgClown(p); break;
+    case 'sloth':
+      // 패의 카드를 모두 즉시 발동 (대상은 모두 무작위) — 발동이 다 끝난 뒤 after
+      finish();
+      slothRunAll(p, after);
+      return;
     case 'chicken': finish(); lgChicken(p); break;
     case 'mirror': {
+      // 상대가 가장 최근에 쓴 카드를 베껴 내 패에
       const src = CARD_POOL.find(c => c.id === lg.lastCard[opp]);
-      if (!src || usedCardThisTurn[p]) { addLog(L('lg.mirrorNone', C)); break; }
+      if (!src) { addLog(L('lg.mirrorNone', C)); break; }
       finish();
+      hand[p].push(src);
+      trimHand(p);
       addLog(L('lg.mirrorDone', { color: p, card: src.id }));
-      hand[p].push(src); // 잠깐 5장이 될 수 있음 — 턴이 끝날 때 정리
-      updateHandUI(); draw();
-      activateCard(p, hand[p].length - 1, after);
-      return; // 복사한 카드의 발동이 끝난 뒤 after 호출
+      break;
     }
+    case 'king':
+      // 왕으로 지정할 내 돌 고르기 (고르면 발동)
+      pendingTarget = { type: 'kingPick', forPlayer: p, legend: true };
+      enterTargetMode(L('tgt.king'));
+      break;
     case 'allin': finish(); lgAllin(p); break;
     case 'turtle':
       finish();
@@ -226,7 +243,6 @@ function useLegend(p, after) {
       passTurn();
       if (after) after();
       return;
-    case 'king': finish(); lgKing(p); break;
   }
   updateStatus(); updatePips(); updateHandUI(); draw();
   if (!gameOver && !pendingTarget) endIfBoardWin(true);
@@ -363,40 +379,197 @@ function lgKing(p) {
   addLog(L('lg.kingDone', { color: p, n }));
 }
 
+// 👑 왕의 귀환 발동: 패를 가득 채우고 새 전설 카드를 무작위로 (새 전설은 다시 비공개)
+function lgKingReturn(p) {
+  lg.king[p] = null;
+  let n = 0;
+  while (hand[p].length < handLimit(p) && n < 10) { grantRandomCard(p); n++; }
+  const pool = LEGEND_POOL.filter(c => c.id !== 'king');
+  const next = pool[Math.floor(Math.random() * pool.length)];
+  lg.card[p] = next.id; lg.done[p] = false;
+  worldLog(L('lg.kingReturn', { color: p, n }));
+  if ((mode === 'multiplayer' || mode === 'bot') && p === myColor) addLog(L('lg.kingNewLegend', { icon: next.icon, card: next.id }));
+  if (mode === 'multiplayer') savePrivateState();
+}
+// 🙈 눈 감고 두기: 판이 어두운 중인지
+function isDark() { return !!lg && lg.turnNo < lg.darkUntil; }
+function drawDark() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(8, 8, 16, 0.93)';
+  ctx.fillRect(0, 0, DIM_W, DIM_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  for (let i = 0; i < SIZE; i++) {
+    const x = GRID_OFFSET_X + i * CELL, y = PAD + i * CELL;
+    ctx.beginPath(); ctx.moveTo(x, PAD); ctx.lineTo(x, PAD + GRID_SPAN); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(GRID_OFFSET_X, y); ctx.lineTo(GRID_OFFSET_X + GRID_SPAN, y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(t('lg.dark', { n: lg.darkUntil - lg.turnNo }), DIM_W / 2, PAD / 2 + 2);
+  ctx.restore();
+}
+// 👑 왕으로 지정한 돌 표시 (양쪽에 보임)
+function drawKings() {
+  if (!lg) return;
+  for (const p of [BLACK, WHITE]) {
+    const k = lg.king[p];
+    if (!k || board[k.r][k.c] !== p || isHiddenFor(k.r, k.c, viewerColor())) continue;
+    const q = cellCenter(k.r, k.c);
+    ctx.save();
+    ctx.strokeStyle = '#e8b923'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(q.x, q.y, R + 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = Math.round(CELL * 0.48) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('👑', q.x, q.y - R * 0.95);
+    ctx.restore();
+  }
+}
+
+// 🧘 무소유: 상대가 카드를 쓸 때 대응해 무효화 (내 패를 모두 버림, 패가 없으면 불가, 차례는 그대로)
+let mpCounterReq = null, mpCounterRes = null, lastSeenCounterReqId = null, counterWait = null;
+function counterHolderCan(holder) { return !!lg && lg.card[holder] === 'nothing' && !lg.done[holder] && !!hand[holder] && hand[holder].length > 0; }
+const BOT_COUNTER_CARDS = ['reversal', 'giant', 'trade', 'chain', 'snipe', 'bomb', 'infection', 'sixsense', 'alkkagi', 'earthquake'];
+function botCounterDecision(holder, cardId) {
+  if (!BOT_COUNTER_CARDS.includes(cardId)) return false;
+  return hand[holder].length <= 2 || ['reversal', 'giant', 'trade', 'chain'].includes(cardId);
+}
+function applyCounter(holder, cardId) {
+  const n = hand[holder].length;
+  hand[holder] = [];
+  lg.done[holder] = true;
+  addLog(L('lg.counterDone', { color: holder, card: cardId, n }));
+  return n;
+}
+// user가 card를 쓰려 할 때: 상대가 무소유로 대응할지 묻고 cb(무효화 여부)
+function askCounter(user, card, cb) {
+  const holder = other(user);
+  if (!lg || spectator) { cb(false); return; }
+  if (mode === 'multiplayer') {
+    if (user !== myColor || !lg.card[holder] || lg.done[holder]) { cb(false); return; } // 상대 전설이 없거나 이미 공개·사용됨
+    // 상대가 무소유를 쥐었는지 모르므로 상대 화면에 물어봄 (아니면 상대 화면이 바로 '넘김'으로 답함)
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    mpCounterReq = { id, by: user, card: card.id };
+    cardAnimBusy = true;
+    statusText.textContent = t('lg.counterWait');
+    counterWait = { id, cb, timer: setTimeout(() => finishCounterWait(id, false), 13000) };
+    syncPublicState();
+    return;
+  }
+  if (!counterHolderCan(holder)) { cb(false); return; }
+  if (mode === 'bot' && holder !== myColor) {
+    const yes = botCounterDecision(holder, card.id);
+    if (yes) applyCounter(holder, card.id);
+    cb(yes);
+    return;
+  }
+  showCounterPrompt(holder, card, (yes) => { if (yes) applyCounter(holder, card.id); cb(yes); });
+}
+function finishCounterWait(id, yes) {
+  if (!counterWait || counterWait.id !== id) return;
+  const { cb, timer } = counterWait;
+  clearTimeout(timer); counterWait = null; cardAnimBusy = false;
+  cb(yes);
+}
+// 대응 여부를 묻는 창 (8초 안에 고르지 않으면 넘김)
+const counterBox = document.getElementById('counter-box'), counterText = document.getElementById('counter-text');
+const counterYesBtn = document.getElementById('counter-yes'), counterNoBtn = document.getElementById('counter-no');
+let counterPrompt = null;
+function showCounterPrompt(holder, card, cb) {
+  cardAnimBusy = true;
+  let left = 8;
+  const render = () => {
+    counterText.textContent = t('lg.counterAsk', { color: other(holder), icon: card.icon, card: card.id, n: hand[holder].length }) + ` (${left})`;
+    counterYesBtn.textContent = t('lg.counterYes'); counterNoBtn.textContent = t('lg.counterNo');
+  };
+  render();
+  counterBox.hidden = false;
+  const done = (yes) => {
+    if (!counterPrompt) return;
+    clearInterval(counterPrompt.timer); counterPrompt = null;
+    counterBox.hidden = true; cardAnimBusy = false;
+    cb(yes);
+    updateHandUI(); draw();
+  };
+  counterPrompt = { done, timer: setInterval(() => { left--; if (left <= 0) done(false); else render(); }, 1000) };
+}
+counterYesBtn.addEventListener('click', () => counterPrompt && counterPrompt.done(true));
+counterNoBtn.addEventListener('click', () => counterPrompt && counterPrompt.done(false));
+// 멀티플레이: 상대의 대응 요청에 답하기 / 내 요청의 답 받기
+function handleCounterSync(data) {
+  mpCounterReq = data.counterReq || null; mpCounterRes = data.counterRes || null;
+  const rq = data.counterReq;
+  if (rq && rq.id !== lastSeenCounterReqId && rq.by !== myColor && !(data.counterRes && data.counterRes.id === rq.id)) {
+    lastSeenCounterReqId = rq.id;
+    const reply = (yes, n) => {
+      mpCounterRes = { id: rq.id, nullify: yes, n: n || 0 };
+      const up = { counterRes: mpCounterRes };
+      if (yes) { up['lgPick/' + myColor] = 'nothing'; up['handN/' + myColor] = 0; }
+      if (dbApi && roomCode) dbApi.updatePath('games/' + roomCode, up).catch(() => {});
+      if (yes) savePrivateState();
+    };
+    const card = findAnyCard(rq.card);
+    if (counterHolderCan(myColor) && card) showCounterPrompt(myColor, card, (yes) => { const n = yes ? applyCounter(myColor, rq.card) : 0; reply(yes, n); });
+    else reply(false);
+  }
+  const rs = data.counterRes;
+  if (rs && counterWait && rs.id === counterWait.id) {
+    if (rs.nullify) { const h = other(myColor); lg.done[h] = true; lg.card[h] = 'nothing'; addLog(L('lg.counterDone', { color: h, card: mpCounterReq ? mpCounterReq.card : '', n: rs.n || 0 })); }
+    finishCounterWait(rs.id, !!rs.nullify);
+  }
+}
+
+// 🦥 나무늘보: 패의 카드를 모두 즉시 발동 (대상은 모두 무작위, 턴 종료 카드는 다 끝난 뒤 한 번만 처리)
+let slothRun = null; // { p, passPending }
+function slothRunAll(p, after) {
+  const cards = hand[p].filter(c => c.type !== 'alkkagi'); // 알까기는 손으로 쏴야 해서 제외
+  const skipped = hand[p].length - cards.length;
+  slothRun = { p, passPending: false };
+  let i = 0;
+  const end = () => {
+    const run = slothRun; slothRun = null;
+    if (skipped) addLog(L('lg.slothSkip', { color: p, n: skipped }));
+    addLog(L('lg.slothDone', { color: p, n: i }));
+    updateStatus(); updatePips(); updateHandUI(); draw();
+    if (run && run.passPending && !gameOver) passTurn();
+    if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+    if (after) after();
+  };
+  const next = () => {
+    if (gameOver || i >= cards.length) { end(); return; }
+    const card = cards[i++];
+    const idx = hand[p].indexOf(card);
+    if (idx === -1) { next(); return; }
+    usedCardThisTurn[p] = false;
+    const ok = activateCard(p, idx, () => {
+      if (pendingTarget && pendingTarget.forPlayer === p) resolveBotPendingTarget();
+      if (pendingTarget && pendingTarget.forPlayer === p) cancelTarget();
+      setTimeout(next, 60);
+    });
+    if (!ok) setTimeout(next, 60);
+  };
+  next();
+}
+
 // 턴이 끝날 때 (passTurn 처음): 무소유·나무늘보 진행/자동 발동, 이번 턴 효과 정리
 function legendTurnEnd(p) {
   if (!lg) return;
+  lg.turnNo++;
   if (lg.big === p) lg.big = 0;
   if (lg.blind === p) lg.blind = 0;
   const counted = mode !== 'multiplayer' || p === myColor; // 멀티: 내 턴은 내 화면에서만 셈 (상대 패는 모름)
   if (counted && !gameOver) {
     const n = lgHandAtPlace !== null ? lgHandAtPlace : hand[p].length;
     lg.empty[p] = n === 0 ? lg.empty[p] + 1 : 0;
-    const edgeTurn = !usedCardThisTurn[p] && !lgUsedThisTurn && turnPlacedPositions.length > 0 && turnPlacedPositions.every(q => isEdgeCell(q.r, q.c));
-    lg.edge[p] = edgeTurn ? lg.edge[p] + 1 : 0;
+    // 나무늘보: 카드를 쓰지 않고 둔 턴이 몇 턴 이어졌는지
+    const idleTurn = !usedCardThisTurn[p] && !lgUsedThisTurn && turnPlacedPositions.length > 0;
+    lg.edge[p] = idleTurn ? lg.edge[p] + 1 : 0;
     trimHand(p);
     const id = lg.card[p];
-    if (id === 'nothing' && !lg.done[p] && lg.empty[p] >= 3 && oppHandCount(p) > 0) lgFireAuto(p);
-    if (id === 'sloth' && !lg.done[p] && lg.edge[p] >= 5) lgFireAuto(p);
+    // 왕의 귀환: 왕이 쓰러졌으면 실패, 20턴 살아남았으면 귀환
+    const k = lg.king[p];
+    if (k && board[k.r][k.c] !== p) { lg.king[p] = null; worldLog(L('lg.kingLost', { color: p })); }
+    else if (k && lg.turnNo - k.start >= 20) lgKingReturn(p);
   }
   lgHandAtPlace = null; lgUsedThisTurn = false;
 }
-
-// 💤 낮잠 (멀티플레이 전용): 내 턴에 10초 동안 아무 입력이 없으면 발동
-let napSince = Date.now(), napKey = '';
-function napActivity() { napSince = Date.now(); }
-['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, napActivity, true));
-setInterval(() => {
-  if (mode !== 'multiplayer' || !lg || lg.card[myColor] !== 'nap' || lg.done[myColor]) return;
-  const key = current + '|' + lg.plies + '|' + usedCardThisTurn[myColor];
-  if (key !== napKey) { napKey = key; napSince = Date.now(); return; }
-  if (current !== myColor || gameOver || draftOpen || pendingTarget || alkPhaseActive() || cardAnimBusy || startupQueue) { napSince = Date.now(); return; }
-  if (turnPlacementsDone > 0 || pendingPlacement || pendingCardUse || pendingTargetCell) { napSince = Date.now(); return; }
-  if (Date.now() - napSince < 10000) return;
-  lgFireAuto(myColor);
-  updateStatus(); updatePips(); updateHandUI(); draw();
-  syncPublicState();
-}, 500);
 
 // 멀티플레이: 상대의 무소유 요청에 내 패를 비우고 응답 / 내 요청의 응답으로 카드를 받음
 function handleLegendSync(data) {

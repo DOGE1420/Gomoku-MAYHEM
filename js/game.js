@@ -600,6 +600,21 @@ function draw() {
     return;
   }
 
+  // 🙈 눈 감고 두기: 판 전체가 어두워짐 (내가 두려는 자리 미리보기만 보임)
+  if (isDark()) {
+    drawDark();
+    if (pendingPlacement) {
+      const p = cellCenter(pendingPlacement.r, pendingPlacement.c);
+      ctx.save(); ctx.globalAlpha = 0.45; drawStoneAt(p.x, p.y, current); ctx.restore();
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, R + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (pendingTargetCell) {
+      const p = cellCenter(pendingTargetCell.r, pendingTargetCell.c);
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+    }
+    return;
+  }
+
   craterList.forEach(cr => {
     if (board[cr.r][cr.c] !== EMPTY) return;
     const p = cellCenter(cr.r, cr.c);
@@ -683,6 +698,7 @@ function draw() {
     ctx.restore();
   }
 
+  drawKings();
   if (lastMovePos && !isHiddenFor(lastMovePos.r, lastMovePos.c, viewerColor())) {
     const p = cellCenter(lastMovePos.r, lastMovePos.c);
     ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 2;
@@ -898,6 +914,7 @@ function handlePlace(pos) {
 }
 
 function passTurn() {
+  if (slothRun) { slothRun.passPending = true; return; } // 나무늘보 연속 발동 중 턴 종료 카드는 다 끝난 뒤 한 번만
   legendTurnEnd(current);
   worldTurnEnd(current);
   draftAfterTurn = null;
@@ -1068,6 +1085,13 @@ function draftPicksFor(player, kind) {
 function openDraft(player) {
   const kind = startupQueue && startupQueue.length ? startupQueue[0].kind : 'card';
   const picks = draftPicksFor(player, kind);
+  if (kind === 'card' && lg && lg.card[player] === 'sloth' && !lg.done[player]) {
+    // 🦥 나무늘보를 쥐고 있으면 카드를 고를 수 없고 무작위로 받음
+    draftPlayer = player; draftOpen = false;
+    addLog(L('lg.slothDraft', { color: player }));
+    pickCardIntoHand(picks[Math.floor(Math.random() * picks.length)]);
+    return;
+  }
   if (mode === 'bot' && player !== myColor) {
     // 봇은 UI 없이 선택 (저난이도는 무작위, 고난이도는 강한 카드 우선)
     draftPlayer = player;
@@ -1301,7 +1325,9 @@ function isValidTradeSecond(first, r, c) {
 }
 
 function useCard(player, idx) {
-  if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alkPhaseActive()) return;
+  const sloth = slothRun && slothRun.p === player; // 나무늘보: 패 전체를 연달아 발동하는 중
+  if (gameOver || draftOpen || pendingTarget || alkPhaseActive()) return;
+  if (!sloth && (player !== current || usedCardThisTurn[player])) return;
   if (mode === 'multiplayer' && player !== myColor) return;
   const card = hand[player][idx];
   if (!card) return;
@@ -1538,6 +1564,16 @@ function handleTargetClick(pos) {
     trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
     craterList.push({ r, c, turns: 2, fresh: true });
     addLog(L('log.bombDone', C));
+    resolved = true;
+
+  } else if (t.type === 'kingPick') {
+    // 👑 왕으로 지정 (20턴 살아남으면 귀환)
+    if (board[r][c] !== t.forPlayer) return;
+    lgFinish(t.forPlayer);
+    const lc = lgCard(t.forPlayer);
+    addLog(L('lg.used', { color: t.forPlayer, icon: lc.icon, card: lc.id }));
+    lg.king[t.forPlayer] = { r, c, start: lg.turnNo };
+    addLog(L('lg.kingSet', C));
     resolved = true;
 
   } else if (t.type === 'self_remove' && board[r][c] === t.forPlayer) {

@@ -1490,7 +1490,7 @@ function botLegendTry(botColor) {
 }
 
 // 봇의 전설 카드 선택: 봇이 스스로 조건을 채우기 쉬운 카드 우선
-const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth', 'nap'];
+const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth'];
 // 봇의 시작 능력 선택
 const BOT_ABILITY_PRIORITY = ['sturdy', 'pouch', 'clover', 'umbrella', 'pickpocket', 'retry'];
 function botPickDraft(picks, player) {

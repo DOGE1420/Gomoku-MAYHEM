@@ -93,7 +93,7 @@ function resolveBotPendingTarget() {
   let candidates = [];
   if (t.type === 'remove') {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.opponent && !isProtected(r, c)) candidates.push({ r, c });
-  } else if (t.type === 'self_remove' || t.type === 'windmill' || t.type === 'teleport' || t.type === 'shield') {
+  } else if (t.type === 'self_remove' || t.type === 'windmill' || t.type === 'teleport' || t.type === 'shield' || t.type === 'kingPick') {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === t.forPlayer) candidates.push({ r, c });
   } else if (t.type === 'trap' || t.type === 'wall') {
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (board[r][c] === EMPTY) candidates.push({ r, c });

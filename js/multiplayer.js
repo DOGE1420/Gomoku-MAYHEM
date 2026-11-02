@@ -28,7 +28,7 @@ function buildPublicState() {
     lgPick: lg ? { [BLACK]: publicLgCard(BLACK), [WHITE]: publicLgCard(WHITE) } : null, // 전설 카드는 쓰기 전까지 '?'로만 공개
     world,
     peekReq: mpPeekReq, peekRes: mpPeekRes, gift: mpGift,
-    lgReq: mpLgReq, lgRes: mpLgRes,
+    lgReq: mpLgReq, lgRes: mpLgRes, counterReq: mpCounterReq, counterRes: mpCounterRes,
     handN: { [myColor]: (hand[myColor] || []).length, [other(myColor)]: lgOppHandN },
   };
 }
@@ -121,16 +121,29 @@ function playCardAnim(cardId, player, done) {
 function activateCard(player, idx, after) {
   const card = hand[player] && hand[player][idx];
   if (!card || cardAnimBusy) return false;
-  if (lg) lg.lastCard[player] = card.id; // 따라쟁이가 복사할 카드
-  if (mode === 'multiplayer') {
-    mpCardFx = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), card: card.id, color: player };
-    seenCardFxIds.add(mpCardFx.id);
-    syncPublicState(); // 효과 적용 전 상태로 먼저 알려 상대도 연출부터 보게 함
-  }
-  playCardAnim(card.id, player, () => {
-    useCard(player, idx);
-    if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
-    if (after) after();
+  if (lg) lg.lastCard[player] = card.id; // 따라쟁이가 베낄 카드
+  // 🧘 상대가 무소유로 대응하면 이 카드는 무효 (카드는 소모, 차례는 그대로)
+  askCounter(player, card, (nullified) => {
+    if (nullified) {
+      const i = hand[player].indexOf(card);
+      if (i !== -1) removeFromHand(player, i);
+      markUsed(player);
+      updateStatus(); updateHandUI(); draw();
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+      if (after) after();
+      return;
+    }
+    if (mode === 'multiplayer') {
+      mpCardFx = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), card: card.id, color: player };
+      seenCardFxIds.add(mpCardFx.id);
+      syncPublicState(); // 효과 적용 전 상태로 먼저 알려 상대도 연출부터 보게 함
+    }
+    playCardAnim(card.id, player, () => {
+      const i = hand[player].indexOf(card);
+      useCard(player, i === -1 ? idx : i);
+      if (mode === 'multiplayer') { syncPublicState(); savePrivateState(); }
+      if (after) after();
+    });
   });
   return true;
 }
@@ -321,6 +334,7 @@ function applyPublicSnapshot(data) {
     handleStealSync(data);
     handleLegendSync(data);
     handleWorldSync(data);
+    handleCounterSync(data);
   }
   lastPublicData = data;
   updateAlkSpectate(data); // 상대 발사가 새로 왔으면 먼저 재생을 시작

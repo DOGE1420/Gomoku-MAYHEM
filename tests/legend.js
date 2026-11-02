@@ -25,13 +25,21 @@ const openBench = require('./load');
     handleTargetClick({r:0,c:0}); handleTargetClick({r:0,c:2}); handleTargetClick({r:0,c:4});
     return { ok, tgt, row5: board[5].filter(v => v === 2).length, my: countStones(1), white: countStones(2), done: lg.done[1], pend: !!pendingTarget, cur: current, lostW: lg.lost[2] };
   })()`);
-  // 무소유 (로컬): 패 0장으로 3턴 → 상대 패 버림
+  // 무소유: 상대 카드에 대응해 무효 (내 패 전부 버림, 패 없으면 불가, 차례는 그대로) — 로컬은 창에서 고름, 봇은 스스로 판단
   res.nothing = await ev(`(() => { ${setup}
-    fresh(1); lg.card[1] = 'nothing'; hand[2] = [CARD_POOL[0], CARD_POOL[1]];
-    const moves = [[0,0],[14,14],[0,3],[14,11],[0,6],[14,8],[3,0],[11,14]];
-    const trace = [];
-    moves.forEach(([r,c], i) => { if (i === 6 && current === 1 && hand[1].length) { activateCard(1, 0); if (pendingTarget) cancelTarget(); } handlePlace({r,c}); if (draftOpen) pickCardIntoHand(CARD_POOL.find(c => c.id === 'blockade')); trace.push([lg.empty[1], hand[1].length]); });
-    return { trace, done: lg.done[1], h1: hand[1].length, h2: hand[2].length, empty: lg.empty[1], log: logLines.slice(0,4).map(fmt) };
+    fresh(1); lg.card[2] = 'nothing'; put([[5,5]], 2); hand[2] = [CARD_POOL[0], CARD_POOL[1]];
+    hand[1] = [CARD_POOL.find(c => c.id === 'bomb')]; activateCard(1, 0);
+    const asked = !document.getElementById('counter-box').hidden;
+    document.getElementById('counter-yes').click();
+    const yes = { asked, white55: board[5][5], whiteHand: hand[2].length, blackHand: hand[1].length, cur: current, done: lg.done[2], pend: !!pendingTarget, log: fmt(logLines[0]) };
+    fresh(1); lg.card[2] = 'nothing'; put([[5,5]], 2); hand[2] = [];
+    hand[1] = [CARD_POOL.find(c => c.id === 'bomb')]; activateCard(1, 0);
+    const emptyHand = { asked: !document.getElementById('counter-box').hidden, pend: !!pendingTarget };
+    cancelTarget();
+    fresh(1); mode = 'bot'; myColor = 1; lg.card[2] = 'nothing'; hand[2] = [CARD_POOL[1]];
+    hand[1] = [CARD_POOL.find(c => c.id === 'chain')]; activateCard(1, 0);
+    const bot = { need: turnPlacementsNeeded, botHand: hand[2].length, done: lg.done[2] };
+    return { yes, emptyHand, bot };
   })()`);
   // 대기만성: 40수, 5번 착수, 승리 줄 금지
   res.latebloom = await ev(`(() => { ${setup}
@@ -43,20 +51,13 @@ const openBench = require('./load');
     [[1,1],[1,2],[1,3],[1,4],[1,5]].forEach(([r,c]) => handlePlace({r,c}));
     return { need, blockedWin, blockedWin2, row1: board[1].filter(v => v === 1).length, cur: current, over: gameOver, big: lg.big };
   })()`);
-  // 눈 감고 두기: 풍차 무시, 함정 무시, 영구 보호
+  // 눈 감고 두기: 사용한 턴부터 3턴 동안 판 암전
   res.blind = await ev(`(() => { ${setup}
-    fresh(1); lg.card[1] = 'blind'; put([[7,7]], 2); windmillList.push({r:7,c:7}); trapList.push({r:7,c:8,owner:2});
-    lg.far[1] = 3; activateLegend(1);
-    handlePlace({r:7,c:8});
-    const placed = board[7][8], prot = isProtected(7,8), traps = trapList.length;
-    current = 2; hand[2] = [CARD_POOL.find(c => c.id === 'bomb')]; usedCardThisTurn[2] = false; activateCard(2, 0); handleTargetClick({r:7,c:8});
-    return { placed, prot, traps, after: board[7][8], cancelled: !!pendingTarget };
-  })()`);
-  // 멀리 두기 진행
-  res.farCount = await ev(`(() => { ${setup}
-    fresh(1); lg.card[1] = 'blind'; put([[7,7]], 2);
-    handlePlace({r:0,c:0}); handlePlace({r:14,c:14}); handlePlace({r:0,c:5}); handlePlace({r:14,c:0}); handlePlace({r:0,c:10});
-    return { far: lg.far[1], ok: lgProgress(1).ok };
+    fresh(1); lg.card[1] = 'blind'; lg.far[1] = 3; put([[7,7]], 2);
+    activateLegend(1);
+    const seq = [isDark()];
+    for (let k = 0; k < 3; k++) { turnPlacementsDone = 1; passTurn(); seq.push(isDark()); }
+    return { seq, done: lg.done[1] };
   })()`);
   // 광대: 폭파 3번 당한 뒤 귀환 (한 자리는 백 돌이 차지 → 밀려남)
   res.clown = await ev(`(() => { ${setup}
@@ -76,23 +77,24 @@ const openBench = require('./load');
     }
     return { win, lose };
   })()`);
-  // 나무늘보: 카드 없이 가장자리만 5턴
+  // 나무늘보: 들고 있으면 카드 선택이 무작위, 카드 없이 6턴 → 패 전부 즉시 발동 (대상 무작위)
   res.sloth = await ev(`(() => { ${setup}
     fresh(1); lg.card[1] = 'sloth';
-    const b = [[0,0],[0,3],[1,6],[0,9],[14,14]], w = [[7,7],[7,8],[8,7],[8,8],[6,6]];
-    for (let i = 0; i < 5; i++) { handlePlace({r:b[i][0],c:b[i][1]}); if (draftOpen) pickCardIntoHand(lastDraft.picks[0]); if (i < 4) { handlePlace({r:w[i][0],c:w[i][1]}); if (draftOpen) pickCardIntoHand(lastDraft.picks[0]); } }
-    return { done: lg.done[1], edge: lg.edge[1], stones: listStones(1) };
-  })()`);
-  // 따라쟁이: 흑이 백의 직전 수 좌우 대칭에 3번
-  res.mirror = await ev(`(() => { ${setup}
-    fresh(1); lg.card[1] = 'mirror';
-    handlePlace({r:7,c:7});
-    for (const [r,c] of [[3,2],[5,4],[9,1]]) { handlePlace({r,c}); if (draftOpen) pickCardIntoHand(CARD_POOL[0]); handlePlace({r,c:14-c}); if (draftOpen) pickCardIntoHand(CARD_POOL[0]); }
-    const mir = lg.mirror[1];
-    current = 2; usedCardThisTurn[2] = false; hand[2] = [CARD_POOL.find(c => c.id === 'chain')]; activateCard(2, 0);
-    current = 1; usedCardThisTurn[1] = false; turnPlacementsNeeded = 1; turnPlacementsDone = 0; hand[1] = [];
+    openDraft(1); const draftUi = draftOpen, gotRandom = hand[1].length;
+    lg.edge[1] = 6; current = 1; turnPlacementsDone = 0; usedCardThisTurn[1] = false;
+    put([[7,7],[7,9]], 2); put([[3,3]], 1);
+    hand[1] = ['wall', 'bomb', 'chain'].map(id => CARD_POOL.find(c => c.id === id));
     const ok = lgProgress(1).ok; activateLegend(1);
-    return { mir, ok, need: turnPlacementsNeeded, used: usedCardThisTurn[1], hand1: hand[1].length, log: logLines.slice(0,3).map(fmt) };
+    return { draftUi, gotRandom, ok };
+  })()`);
+  await page.waitForTimeout(800);
+  res.slothAfter = await ev(`({ hand: hand[1].length, walls: board.flat().filter(v => v === WALL).length, whites: countStones(2), need: turnPlacementsNeeded, cur: current, done: lg.done[1], running: !!slothRun, log: logLines.slice(0, 4).map(fmt) })`);
+  // 따라쟁이: 상대가 가장 최근에 쓴 카드를 베껴 내 패에
+  res.mirror = await ev(`(() => { ${setup}
+    fresh(2); hand[2] = [CARD_POOL.find(c => c.id === 'chain')]; activateCard(2, 0);
+    current = 1; usedCardThisTurn[1] = false; turnPlacementsNeeded = 1; turnPlacementsDone = 0; hand[1] = []; lg.card[1] = 'mirror';
+    const ok = lgProgress(1).ok; activateLegend(1);
+    return { ok, hand: hand[1].map(c => c.id), used: usedCardThisTurn[1], cur: current };
   })()`);
   // 올인
   res.allin = await ev(`(() => { ${setup}
@@ -114,13 +116,16 @@ const openBench = require('./load');
     handlePlace({r:2,c:5});
     return { ok, cur, wo, over1, over: gameOver, winner: scanBoardForWin() && scanBoardForWin().player, badge: winLenBadge.textContent };
   })()`);
-  // 왕의 귀환
+  // 왕의 귀환: 왕 지정 → 20턴 살아남으면 패 가득 + 새 전설 / 왕이 쓰러지면 실패
   res.king = await ev(`(() => { ${setup}
-    fresh(1); lg.card[1] = 'king';
-    handlePlace({r:7,c:7});
-    lg.plies = 20; current = 1; put([[6,4],[6,5],[6,6]], 1);
-    const ok = lgProgress(1).ok; activateLegend(1);
-    return { ok, row6: [board[6][6],board[6][7],board[6][8]], n: countStones(1), over: gameOver };
+    fresh(1); lg.card[1] = 'king'; put([[7,7]], 1);
+    activateLegend(1); const tgt = pendingTarget && pendingTarget.type; handleTargetClick({ r: 7, c: 7 });
+    const set = lg.king[1];
+    for (let k = 0; k < 21; k++) { turnPlacementsDone = 1; passTurn(); }
+    const ret = { hand: hand[1].length, newCard: lg.card[1], done: lg.done[1], king: lg.king[1] };
+    fresh(1); lg.card[1] = 'king'; put([[7,7]], 1); activateLegend(1); handleTargetClick({ r: 7, c: 7 });
+    board[7][7] = EMPTY; for (let k = 0; k < 2; k++) { turnPlacementsDone = 1; passTurn(); }
+    return { tgt, set, ret, lost: lg.king[1], noNap: !LEGEND_POOL.some(c => c.id === 'nap') };
   })()`);
   // 상대가 4목 승리면 봇이 막음 (lgUrgentMove)
   res.urgent = await ev(`(() => { ${setup}

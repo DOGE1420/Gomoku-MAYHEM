@@ -11,7 +11,7 @@ const TIERS = {
   windmill: { t: 'A', ko: '쓴 쪽 승률 59.7%, 픽률 84% — 주변 8칸 봉쇄로 공격 거점', en: 'Used-side win 59.7%, pick 84% — locks 8 cells around your stone' },
   infection: { t: 'A', ko: '쓴 쪽 승률 58.3% (표본 적음) — 2개 전향은 크지만 턴 종료', en: 'Used-side win 58.3% (small sample) — 2 conversions, ends your turn' },
   snipe: { t: 'D', ko: '든 쪽 승률 40.7% — 쓰면 턴이 끝나 봇이 30판 중 3번만 사용 (표본 적음)', en: "Holder win 40.7% — ends the turn, bots used it only 3 times in 30 games (small sample)" },
-  giant: { t: 'A', est: true, ko: '예상 — 효과 변경(3×3 중립 바위, 돌 파괴) 후 다시 측정 전', en: "Estimate — reworked (neutral 3×3 boulder that shatters stones), not re-measured yet" },
+  giant: { t: 'S', ko: '든 쪽 승률 96.7% (29승 1패) — 한 번에 4칸, 현재 가장 강한 카드', en: "Holder win 96.7% (29–1) — 4 cells at once, the strongest card right now" },
   trap: { t: 'B', ko: '쓴 쪽 승률 52.2% — 4를 만들 자리와 묶으면 강함', en: 'Used-side win 52.2% — strong when paired with a four' },
   blockade: { t: 'B', ko: '쓴 쪽 승률 50.0% — 상대가 결정타를 쥐었을 때만 가치', en: 'Used-side win 50.0% — only shines against a key card' },
   reversal: { t: 'B', ko: '쓴 쪽 승률 50.0% — 지고 있을 때 판을 뒤집는 한 방', en: 'Used-side win 50.0% — a comeback swing' },
@@ -54,18 +54,18 @@ Object.assign(I18N.ko, {
   'codex.title': '카드 도감', 'codex.close': '닫기',
   'codex.tab.cards': '일반 카드', 'codex.tab.legends': '전설 카드', 'codex.tab.abilities': '시작 능력', 'codex.tab.maps': '맵', 'codex.tab.tiers': '티어표',
   'codex.chance': '출현 {p}%', 'codex.auto': '자동 발동', 'codex.manual': '조건 충족 시 사용', 'codex.mpOnly': '멀티 전용', 'codex.est': '예상',
-  'codex.tierNote': '기존 카드: 짱짱맨끼리 200판에서 그 카드를 쓴 쪽의 승률·픽률 · 새 카드: 한쪽만 시작 패에 2장 쥐고 30판 · 전설 카드: 한쪽만 들고 10판 (모두 레벨 5, 아무것도 없는 기준선 46.4%, 판 수가 적어 ±15%p 정도 흔들림) · "예상"은 아직 측정 전이라 효과를 보고 매긴 티어입니다.',
+  'codex.tierNote': '기존 카드: 짱짱맨끼리 200판에서 그 카드를 쓴 쪽의 승률·픽률 · 새 카드: 한쪽만 시작 패에 2장 쥐고 30판 · 시작 능력: 한쪽만 갖고 30판 · 전설 카드: 한쪽만 들고 10판 (모두 레벨 5, 아무것도 없는 기준선 46.4%, 판 수가 적어 ±15%p 정도 흔들림) · "예상"은 아직 측정 전이라 효과를 보고 매긴 티어입니다.',
   'codex.sec.cards': '일반 카드', 'codex.sec.legends': '전설 카드', 'codex.sec.abilities': '시작 능력',
-  'codex.abNote': '시작 능력은 판마다 무작위로 1개가 정해져 양쪽 모두에게 똑같이 적용됩니다 (그래서 티어표에는 없음).',
+  'codex.abNote': '시작 능력은 판마다 무작위로 1개가 정해져 양쪽 모두에게 똑같이 적용됩니다.',
 });
 Object.assign(I18N.en, {
   'codex.open': '📚 Card Codex · Tier List', 'codex.openShort': '📚 Codex', 'codex.desc': 'Every card, legend, ability and map',
   'codex.title': 'Card Codex', 'codex.close': 'Close',
   'codex.tab.cards': 'Cards', 'codex.tab.legends': 'Legends', 'codex.tab.abilities': 'Abilities', 'codex.tab.maps': 'Maps', 'codex.tab.tiers': 'Tier List',
   'codex.chance': '{p}% to appear', 'codex.auto': 'Automatic', 'codex.manual': 'Use when ready', 'codex.mpOnly': 'Multiplayer only', 'codex.est': 'estimate',
-  'codex.tierNote': 'Original cards: win and pick rate of the side that used them over 200 Super-bot games · New cards: one side starts with 2 copies, 30 games · Legends: one side holds it, 10 games (all level 5; baseline with nothing 46.4%; small samples swing about ±15 points) · "estimate" = not measured yet.',
+  'codex.tierNote': 'Original cards: win and pick rate of the side that used them over 200 Super-bot games · New cards: one side starts with 2 copies, 30 games · Abilities: one side has it, 30 games · Legends: one side holds it, 10 games (all level 5; baseline with nothing 46.4%; small samples swing about ±15 points) · "estimate" = not measured yet.',
   'codex.sec.cards': 'Cards', 'codex.sec.legends': 'Legends', 'codex.sec.abilities': 'Abilities',
-  'codex.abNote': 'Each game rolls one random starting ability that applies to both players equally (so it is not in the tier list).',
+  'codex.abNote': 'Each game rolls one random starting ability that applies to both players equally.',
 });
 
 const codexEl = document.getElementById('codex');
@@ -83,7 +83,7 @@ function escapeHtml(s) { return String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp
 
 function codexCard(card, extra) {
   return `<div class="codex-card${card.legend ? ' legend' : card.ability ? ' ability' : ''}">` +
-    `<div class="cc-head"><span class="cc-icon">${card.icon}</span><span class="cc-name">${escapeHtml(cardName(card))}</span>${card.ability ? '' : tierBadge(card.id)}</div>` +
+    `<div class="cc-head"><span class="cc-icon">${card.icon}</span><span class="cc-name">${escapeHtml(cardName(card))}</span>${tierBadge(card.id)}</div>` +
     (extra ? `<div class="cc-meta">${extra}</div>` : '') +
     `<div class="cc-short">${escapeHtml(cardShort(card))}</div>` +
     `<div class="cc-desc">${escapeHtml(cardDesc(card).replace(/\s*\((가장 희귀|희귀 카드)\)/g, ''))}</div></div>`;
@@ -114,7 +114,7 @@ function renderCodex() {
       `<div class="cc-short">${escapeHtml(mapShort(m.id))}</div><div class="cc-desc">${escapeHtml(mapDesc(m.id))}</div></div>`).join('') + '</div>' +
       `<p class="codex-note">${escapeHtml(t('map.zoneNote', { start: ZONE_START, every: ZONE_EVERY, max: ZONE_MAX }))}</p>`;
   } else {
-    const groups = [['cards', CARD_POOL], ['legends', LEGEND_POOL]]; // 시작 능력은 양쪽 공통이라 티어 없음
+    const groups = [['cards', CARD_POOL], ['legends', LEGEND_POOL], ['abilities', ABILITY_POOL]];
     html = groups.map(([k, pool]) => `<h3 class="codex-sec">${t('codex.sec.' + k)}</h3>` + TIER_ORDER.map(tier => {
       const list = pool.filter(c => tierInfo(c.id) && tierInfo(c.id).t === tier);
       if (!list.length) return '';
