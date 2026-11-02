@@ -17,6 +17,14 @@
         <span data-i18n="settings.reduceMotion">움직임 줄이기</span>
       </label>
       <p class="settings-desc" data-i18n="settings.reduceMotion.desc">카드 발동 연출을 움직임 없는 페이드로 바꾸고, 파티클과 판 흔들림을 끕니다.</p>
+      <div class="settings-volume">
+        <label for="bgm-volume" data-i18n="settings.bgm">🎵 배경 음악</label>
+        <div class="volume-row">
+          <button class="vol-mute" id="bgm-mute" type="button" aria-label="배경 음악 끄기/켜기" data-i18n-aria="settings.bgmMute">🔊</button>
+          <input type="range" id="bgm-volume" min="0" max="100" step="5" value="40">
+          <span class="vol-value" id="bgm-volume-value">40%</span>
+        </div>
+      </div>
     </div>
   </div>
   <h1 data-i18n="title">증강 오목</h1>
@@ -239,6 +247,7 @@
 
 <script src="js/assets.js"></script>
 <script src="js/cards.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/game.js"></script>
 <script src="js/legend.js"></script>
 <script src="js/world.js"></script>
