@@ -371,11 +371,45 @@ function lgSloth(p) {
   addLog(L('lg.slothDone', { color: p, n }));
 }
 // 🎰 패를 모두 버리고 동전: 상대 돌 절반 or 내 돌 절반
+// 🎰 슬롯머신: 릴 3개가 같은 그림이면 잭팟 (확률 50%) — 결과를 먼저 정하고 릴이 돌다 하나씩 멈추는 연출만 보여 줌
+const SLOT_SYMBOLS = ['🍒', '🍋', '🔔', '💎', '7️⃣'];
+function spinSlot(p) {
+  const win = Math.random() < 0.5;
+  let reels;
+  if (win) { const s = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]; reels = [s, s, s]; }
+  else {
+    do { reels = [0, 1, 2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]); }
+    while (reels[0] === reels[1] && reels[1] === reels[2]);
+  }
+  worldLog(L('lg.slotRoll', { color: p, a: reels[0], b: reels[1], c: reels[2] }));
+  playSlot(reels, win);
+  return win;
+}
+const slotBox = document.getElementById('slot-box');
+function playSlot(reels, win) {
+  if (!slotBox || cardAnimInstant) return;
+  const els = slotBox.querySelectorAll('.slot-reel'), result = slotBox.querySelector('.slot-result');
+  result.textContent = ''; result.className = 'slot-result';
+  slotBox.hidden = false; cardAnimBusy = true;
+  const stops = reduceMotion ? [0, 0, 0] : [900, 1400, 1900];
+  const timers = [...els].map((el, i) => {
+    el.classList.add('spinning');
+    return setInterval(() => { el.textContent = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]; }, 70);
+  });
+  stops.forEach((ms, i) => setTimeout(() => {
+    clearInterval(timers[i]); els[i].classList.remove('spinning'); els[i].textContent = reels[i];
+    if (i === 2) {
+      result.textContent = win ? t('lg.slotWin') : t('lg.slotLose');
+      result.className = 'slot-result ' + (win ? 'win' : 'lose');
+      setTimeout(() => { slotBox.hidden = true; cardAnimBusy = false; updateHandUI(); draw(); }, reduceMotion ? 900 : 1400);
+    }
+  }, ms));
+}
 // 🎰 올인 (패 걸기): 패를 모두 걸고 50% 잭팟이면 건 장수의 2배를 받음, 꽝이면 잃음
 function lgAllinCards(p) {
   const n = hand[p].length;
   hand[p] = [];
-  if (Math.random() < 0.5) {
+  if (spinSlot(p)) {
     for (let k = 0; k < n * 2; k++) grantRandomCard(p); // 패 한도를 넘으면 오래된 카드부터 버려짐
     addLog(L('lg.allinCardsWin', { color: p, n, m: n * 2 }));
   } else addLog(L('lg.allinCardsLose', { color: p, n }));
@@ -383,7 +417,7 @@ function lgAllinCards(p) {
 // 🎰 올인 (돌 걸기): 고른 돌 3개를 걸고 50% 잭팟이면 제자리로 돌아오고 주변에 3개 더, 꽝이면 잃음 (승리 줄이 되는 칸은 건너뜀)
 function lgAllinStones(p, picks) {
   picks.forEach(q => lgRemoveStone(q.r, q.c));
-  if (Math.random() >= 0.5) { pruneInvalidTraps(); addLog(L('lg.allinStonesLose', { color: p })); return; }
+  if (!spinSlot(p)) { pruneInvalidTraps(); addLog(L('lg.allinStonesLose', { color: p })); return; }
   let n = 0;
   const put = (r, c) => { board[r][c] = p; moveHistory.push({ r, c, player: p }); n++; };
   for (const q of picks) if (board[q.r][q.c] === EMPTY && !lgWouldWin(q.r, q.c, p)) put(q.r, q.c);
