@@ -4,44 +4,44 @@
 // ================= 맵: 판마다 무작위 하나 =================
 // 라운드 = 흑·백이 한 번씩 둔 것 (백의 턴이 끝날 때 1 증가)
 const MAP_POOL = [
-  { id: 'classic', icon: '🏞️', name: '평원', short: '자연재해 없음', desc: '아무 일도 일어나지 않는 기본 맵입니다.' },
+  { id: 'classic', icon: '🏞️', name: '평원', short: '자연재해 없음', desc: '아무 일도 없는 기본 맵.' },
   { id: 'summer', icon: '☀️', name: '여름', short: '5라운드마다 흑·백 돌 1개씩 녹음',
-    desc: '날씨가 더워 5라운드마다 흑돌과 백돌이 하나씩 무작위로 녹아 사라집니다. (1라운드 = 흑·백이 한 수씩)' },
+    desc: '5라운드마다 흑·백 돌이 하나씩 녹아 사라집니다.' },
   { id: 'winter', icon: '❄️', name: '겨울', short: '5라운드마다 돌 1개가 2라운드 동안 얼음',
-    desc: '5라운드마다 무작위 돌 하나가 얼어붙어 2라운드 동안 누구의 돌도 아닌 얼음이 됩니다 (줄이 끊기고 그 칸에 둘 수 없음). 2라운드 뒤 녹아 원래 주인에게 돌아옵니다.' },
+    desc: '5라운드마다 돌 하나가 2라운드 동안 얼음(누구의 돌도 아님)이 됩니다.' },
   { id: 'space', icon: '🌌', name: '우주', short: '웜홀: 판의 양 끝이 반대편과 연결',
-    desc: '웜홀로 판의 왼쪽·오른쪽 끝, 위쪽·아래쪽 끝이 서로 이어져 있습니다. 가장자리에서 끊긴 줄도 반대편으로 넘어가 이어지면 승리 줄이 됩니다.' },
+    desc: '판의 양 끝이 이어져, 줄이 반대편으로 넘어가도 이어집니다.' },
   { id: 'desert', icon: '🏜️', name: '사막', short: '8라운드부터 4라운드마다 모래폭풍',
-    desc: '8라운드부터 4라운드마다 모래폭풍이 무작위 방향으로 불어, 모든 돌이 그 방향으로 한 칸씩 밀립니다. (막힌 돌은 제자리, 승리 줄이 완성되는 이동은 일어나지 않음)' },
+    desc: '8라운드부터 4라운드마다 모래폭풍이 모든 돌을 한 칸씩 밉니다.' },
   { id: 'rain', icon: '🌧️', name: '장마', short: '알까기 미끄러움 · 지진 때 쓰나미',
-    desc: '판이 젖어 알까기 돌이 더 멀리 미끄러집니다. 지진 카드가 두 배로 자주 나오고, 지진이 나면 쓰나미가 덮쳐 무작위 한쪽 가장자리 3줄의 돌이 휩쓸려 사라집니다.' },
+    desc: '알까기가 미끄럽고, 지진 때 쓰나미가 가장자리 3줄을 쓸어 갑니다.' },
 ];
 const MAP_EN = {
-  classic: { name: 'Plains', short: 'No disasters', desc: 'The plain map — nothing happens.' },
-  summer: { name: 'Summer', short: 'A black and a white stone melt every 5 rounds', desc: 'It is hot: every 5 rounds one random black stone and one random white stone melt away. (1 round = one move by each side)' },
-  winter: { name: 'Winter', short: 'A stone freezes for 2 rounds every 5 rounds', desc: "Every 5 rounds a random stone freezes into ice that belongs to nobody for 2 rounds (it breaks lines and nobody can play there). Then it thaws back to its owner." },
-  space: { name: 'Space', short: 'Wormholes: opposite edges are connected', desc: 'Wormholes connect the left and right edges, and the top and bottom edges. A line that runs off one edge continues on the other side and can win.' },
-  desert: { name: 'Desert', short: 'Sandstorm every 4 rounds from round 8', desc: 'From round 8, every 4 rounds a sandstorm blows in a random direction and pushes every stone one cell that way. (Blocked stones stay; moves that would complete a winning line do not happen.)' },
-  rain: { name: 'Monsoon', short: 'Slippery flicks · tsunami on earthquakes', desc: 'The wet board makes flicked stones slide farther. Earthquake cards show up twice as often, and every earthquake brings a tsunami that sweeps away the stones on the 3 lines next to a random edge.' },
+  classic: { name: 'Plains', short: 'No disasters', desc: 'Nothing happens.' },
+  summer: { name: 'Summer', short: 'A black and a white stone melt every 5 rounds', desc: 'Every 5 rounds, one black and one white stone melt.' },
+  winter: { name: 'Winter', short: 'A stone freezes for 2 rounds every 5 rounds', desc: "Every 5 rounds, a stone freezes into neutral ice for 2 rounds." },
+  space: { name: 'Space', short: 'Wormholes: opposite edges are connected', desc: 'Opposite edges connect, so lines wrap around.' },
+  desert: { name: 'Desert', short: 'Sandstorm every 4 rounds from round 8', desc: 'From round 8, every 4 rounds a sandstorm pushes every stone one cell.' },
+  rain: { name: 'Monsoon', short: 'Slippery flicks · tsunami on earthquakes', desc: 'Flicks slide farther; earthquakes bring a tsunami that sweeps the 3 edge lines.' },
 };
 const ZONE_START = 15, ZONE_EVERY = 5, ZONE_MAX = 3; // 자기장: 15라운드부터 5라운드마다 바깥 한 줄씩, 최대 3줄 (9×9까지)
 
 // ================= 시작 능력: 게임 시작 때 전설 카드 다음에 1개 (판 내내 자동 적용) =================
 const ABILITY_POOL = [
-  { id: 'pickpocket', icon: '🖐️', name: '손버릇', short: '상대의 첫 카드를 똑같이 1장 받음', desc: '상대가 처음으로 카드를 받으면, 같은 카드 1장이 내 패에도 들어옵니다.' },
-  { id: 'umbrella', icon: '☂️', name: '자연재해 면역', short: '맵 자연재해가 내 돌을 건드리지 않음', desc: '여름에 녹기·겨울 얼음·사막 모래폭풍·장마 쓰나미가 내 돌에는 일어나지 않습니다. (자기장은 피할 수 없음)' },
-  { id: 'pouch', icon: '🎒', name: '넉넉한 주머니', short: '패를 5장까지', desc: '패를 4장이 아니라 5장까지 쥘 수 있습니다.' },
-  { id: 'clover', icon: '🍀', name: '행운', short: '카드 고를 때 4장 중 선택', desc: '3수마다 하는 카드 선택에서 3장이 아니라 4장 중에 고릅니다.' },
-  { id: 'sturdy', icon: '🏰', name: '단단한 시작', short: '처음 둔 돌 3개는 영구 보호', desc: '내가 처음 둔 돌 3개는 판 내내 폭파·저격·감염·맞교환·운석·전세 역전에 당하지 않습니다.' },
-  { id: 'retry', icon: '🔁', name: '재도전', short: '카드 다시 뽑기 3회', desc: '카드 선택 화면의 [다시 뽑기]를 1번이 아니라 3번까지 쓸 수 있습니다.' },
+  { id: 'pickpocket', icon: '🖐️', name: '손버릇', short: '상대의 첫 카드를 똑같이 받음', desc: '상대가 처음 받은 카드를 똑같이 1장 받습니다.' },
+  { id: 'umbrella', icon: '☂️', name: '자연재해 면역', short: '자연재해 없음', desc: '이번 판은 맵 자연재해(녹기·얼음·모래폭풍·쓰나미)가 일어나지 않습니다.' },
+  { id: 'pouch', icon: '🎒', name: '넉넉한 주머니', short: '패 5장까지', desc: '패를 5장까지 쥘 수 있습니다.' },
+  { id: 'clover', icon: '🍀', name: '행운', short: '카드 4장 중 선택', desc: '카드를 고를 때 4장 중에서 고릅니다.' },
+  { id: 'sturdy', icon: '🏰', name: '단단한 시작', short: '처음 둔 돌 3개 영구 보호', desc: '처음 둔 돌 3개는 판 내내 카드 효과로부터 보호됩니다.' },
+  { id: 'retry', icon: '🔁', name: '재도전', short: '다시 뽑기 3회', desc: '카드 다시 뽑기를 3번 쓸 수 있습니다.' },
 ];
 const ABILITY_EN = {
-  pickpocket: { name: 'Pickpocket', short: "Get a copy of the opponent's first card", desc: 'When your opponent gets their first card, a copy of it goes into your hand too.' },
-  umbrella: { name: 'Disaster-proof', short: "Map disasters don't touch your stones", desc: "Summer melting, winter ice, desert sandstorms and monsoon tsunamis never affect your stones. (The closing zone still does.)" },
-  pouch: { name: 'Big Pouch', short: 'Hold up to 5 cards', desc: 'Your hand holds up to 5 cards instead of 4.' },
-  clover: { name: 'Lucky Clover', short: 'Pick from 4 cards', desc: 'Card picks every 3 stones offer you 4 cards instead of 3.' },
-  sturdy: { name: 'Sturdy Start', short: 'Your first 3 stones are protected forever', desc: 'Your first 3 stones are immune to Bomb, Snipe, Infection, Swap, Meteor and Reversal for the whole game.' },
-  retry: { name: 'Second Chance', short: '3 card rerolls', desc: 'You can use [Reroll] on the card pick screen 3 times instead of once.' },
+  pickpocket: { name: 'Pickpocket', short: "Copy the opponent's first card", desc: 'Get a copy of the first card your opponent receives.' },
+  umbrella: { name: 'Disaster-proof', short: "No disasters", desc: "This game's map disasters (melting, ice, sandstorms, tsunamis) don't happen." },
+  pouch: { name: 'Big Pouch', short: 'Hold up to 5 cards', desc: 'Your hand holds up to 5 cards.' },
+  clover: { name: 'Lucky Clover', short: 'Pick from 4 cards', desc: 'Card picks offer 4 cards.' },
+  sturdy: { name: 'Sturdy Start', short: 'First 3 stones protected', desc: 'Your first 3 stones are protected from card effects all game.' },
+  retry: { name: 'Second Chance', short: '3 rerolls', desc: 'You can reroll card picks 3 times.' },
 };
 ABILITY_POOL.forEach(c => { c.ability = true; c.type = 'ability'; });
 
@@ -52,12 +52,13 @@ Object.assign(I18N.ko, {
   'log.sandstorm': '🏜️ 모래폭풍! 돌 {n}개가 {dir}으로 밀림', 'dir.up': '위쪽', 'dir.down': '아래쪽', 'dir.left': '왼쪽', 'dir.right': '오른쪽',
   'log.tsunami': '🌊 쓰나미! {dir} 가장자리 3줄의 돌 {n}개가 휩쓸려 감',
   'log.zoneWarn': '⚡ 다음 라운드에 자기장이 줄어듭니다 (바깥 한 줄)', 'log.zone': '⚡ 자기장이 줄어듦 — 바깥 줄의 돌 {n}개가 사라짐',
+  'ab.shared': '이번 판 양쪽 모두에게 똑같이 적용돼요', 'log.abIs': '🎲 이번 판 시작 능력 (양쪽 모두): {icon} {card}',
   'ab.draftTitle': '{color} — 시작 능력 선택', 'ab.draftSub': '판 내내 자동으로 적용되는 능력 1개를 고르세요', 'ab.badge': '시작 능력',
   'ab.picked': '{color}: 시작 능력 {icon} {card} 선택', 'log.pickpocket': '{color}: 🖐️ 손버릇 — 상대의 첫 카드 {card}를 똑같이 받음',
   'draft.refresh': '🔄 다시 뽑기 ({n}회 남음)', 'log.refresh': '{color}: 🔄 카드 다시 뽑기',
   'log.snipeDone': '{color}: 🎯 저격 — 상대 돌 {n}개 제거 (턴 종료)', 'log.doubleDone': '{color}: 🎁 1+1 — 카드 2장 획득',
   'log.peekShow': '{color}: 🔍 상대 패 — {list}', 'log.peekEmpty': '{color}: 🔍 상대 패가 비어 있음', 'log.peeked': '🔍 상대가 내 패를 엿봤습니다',
-  'log.giantOn': '{color}: 🪨 거대한 돌 — 이번 턴 다음 착수가 2×2로 놓임', 'log.giantDone': '{color}: 🪨 거대한 돌이 {n}칸을 차지',
+  'log.giantOn': '{color}: 🪨 거대한 돌 — 다음 착수 자리에 3×3 바위가 떨어짐', 'log.giantDone': '{color}: 🪨 거대한 돌 낙하! 돌 {n}개가 깨짐',
   'log.ghostOn': '{color}: 👻 투명한 돌 — 이번 턴 다음 착수는 상대에게 3라운드 동안 안 보임', 'log.ghostFound': '👻 숨어 있던 투명한 돌을 찾았습니다!', 'log.ghostGone': '👻 투명한 돌이 모습을 드러냄',
   'log.weatherDone': '{color}: 🌦️ 기상 이변 — 맵이 {icon} {map}(으)로 바뀜',
 });
@@ -68,12 +69,13 @@ Object.assign(I18N.en, {
   'log.sandstorm': '🏜️ Sandstorm! {n} stone(s) pushed {dir}', 'dir.up': 'up', 'dir.down': 'down', 'dir.left': 'left', 'dir.right': 'right',
   'log.tsunami': '🌊 Tsunami! {n} stone(s) on the 3 lines by the {dir} edge were swept away',
   'log.zoneWarn': '⚡ The zone closes next round (outer ring)', 'log.zone': '⚡ The zone closed — {n} stone(s) on the outer ring vanished',
+  'ab.shared': 'Applies to both players this game', 'log.abIs': '🎲 Starting ability this game (both players): {icon} {card}',
   'ab.draftTitle': '{color} — Pick a starting ability', 'ab.draftSub': 'One passive ability that lasts the whole game', 'ab.badge': 'Ability',
   'ab.picked': '{color}: picked ability {icon} {card}', 'log.pickpocket': "{color}: 🖐️ Pickpocket — copied the opponent's first card, {card}",
   'draft.refresh': '🔄 Reroll ({n} left)', 'log.refresh': '{color}: 🔄 rerolled the cards',
   'log.snipeDone': '{color}: 🎯 Snipe — removed {n} enemy stone(s) (turn ends)', 'log.doubleDone': '{color}: 🎁 1+1 — got 2 cards',
   'log.peekShow': "{color}: 🔍 opponent's hand — {list}", 'log.peekEmpty': "{color}: 🔍 the opponent's hand is empty", 'log.peeked': '🔍 Your opponent peeked at your hand',
-  'log.giantOn': '{color}: 🪨 Giant Stone — your next stone this turn covers 2×2', 'log.giantDone': '{color}: 🪨 the giant stone covers {n} cells',
+  'log.giantOn': '{color}: 🪨 Giant Stone — a 3×3 boulder drops on your next placement', 'log.giantDone': '{color}: 🪨 The giant stone dropped! {n} stone(s) shattered',
   'log.ghostOn': '{color}: 👻 Ghost Stone — your next stone this turn is invisible to the opponent for 3 rounds', 'log.ghostFound': '👻 You found a hidden ghost stone!', 'log.ghostGone': '👻 A ghost stone became visible',
   'log.weatherDone': '{color}: 🌦️ Weather Shift — the map is now {icon} {map}',
 });
@@ -91,20 +93,25 @@ function mapName(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.i
 function mapShort(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.id] ? MAP_EN[m.id].short : m.short; }
 function mapDesc(id) { const m = mapInfo(id); return lang === 'en' && MAP_EN[m.id] ? MAP_EN[m.id].desc : m.desc; }
 function worldFresh(map) {
-  return { map, round: 0, frozen: [], zone: 0, hidden: [], ab: lgPair(null), pp: lgPair(false), sturdy: lgPair(0), refresh: lgPair(1), ev: [], evSeq: 0 };
+  return { map, round: 0, frozen: [], zone: 0, hidden: [], giants: [], ab: lgPair(null), pp: lgPair(false), sturdy: lgPair(0), refresh: lgPair(1), ev: [], evSeq: 0 };
 }
 function worldNorm(d) {
   const out = worldFresh(d && d.map ? d.map : 'classic');
   if (!d || typeof d !== 'object') return out;
   out.round = d.round || 0; out.zone = d.zone || 0;
   const arr = v => Array.isArray(v) ? v.slice() : (v ? Object.values(v) : []);
-  out.frozen = arr(d.frozen); out.hidden = arr(d.hidden); out.ev = arr(d.ev); out.evSeq = d.evSeq || 0;
+  out.frozen = arr(d.frozen); out.hidden = arr(d.hidden); out.giants = arr(d.giants); out.ev = arr(d.ev); out.evSeq = d.evSeq || 0;
   for (const k of ['ab', 'pp', 'sturdy', 'refresh']) if (d[k]) for (const p of [BLACK, WHITE]) if (d[k][p] !== undefined) out[k][p] = d[k][p];
   return out;
 }
-function worldReset(map) {
+// 시작 능력: 판마다 무작위 1개가 양쪽에 똑같이 적용
+function randomAbilityId() { return ABILITY_POOL[Math.floor(Math.random() * ABILITY_POOL.length)].id; }
+function worldReset(map, ability) {
   world = worldFresh(map || randomMapId());
   mapId = world.map;
+  const ab = ability === undefined ? randomAbilityId() : ability;
+  world.ab = lgPair(ab);
+  if (ab === 'retry') world.refresh = lgPair(3);
   wNext = { giant: 0, ghost: 0 }; peekView = null; lastSeenWorldEv = 0;
   mpPeekReq = null; mpPeekRes = null; mpGift = null;
 }
@@ -248,19 +255,49 @@ function worldOnPlace(r, c, p) {
   if (abOf(p) === 'sturdy' && world.sturdy[p] < 3) { world.sturdy[p]++; immuneList.push({ r, c, owner: p }); }
   if (wNext.ghost === p) { wNext.ghost = 0; world.hidden.push({ r, c, owner: p, rounds: 3 }); }
   if (wNext.giant === p) {
+    // 거대한 돌: 이번 착수 자리를 중심으로 3×3 중립 바위가 떨어짐 — 그 9칸의 돌은 모두 깨지고 아무도 못 둠
     wNext.giant = 0;
-    let n = 1;
-    for (const [dr, dc] of [[0, 1], [1, 0], [1, 1]]) {
+    let n = 0;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
       const rr = r + dr, cc = c + dc;
-      if (!inBoard(rr, cc) || board[rr][cc] !== EMPTY || placeBlocked(rr, cc, p)) continue;
-      if (lgWouldWin(rr, cc, p)) continue; // 덤으로 붙는 칸으로는 승리 줄을 완성하지 않음
-      board[rr][cc] = p;
-      moveHistory.push({ r: rr, c: cc, player: p, counted: false });
-      n++;
+      if (!inBoard(rr, cc)) continue;
+      const v = board[rr][cc];
+      if (isStone(v)) { lgRemoveStone(rr, cc); if (dr || dc) { lgLose(v, rr, cc); n++; } }
+      board[rr][cc] = WALL;
+      world.frozen = world.frozen.filter(f => !(f.r === rr && f.c === cc));
     }
+    world.giants.push({ r, c });
+    craterList = craterList.filter(cr => Math.max(Math.abs(cr.r - r), Math.abs(cr.c - c)) > 1);
     pruneInvalidTraps();
-    addLog(L('log.giantDone', { color: p, n }));
+    if (lastMovePos && lastMovePos.r === r && lastMovePos.c === c) lastMovePos = null;
+    triggerBoardShake();
+    worldLog(L('log.giantDone', { color: p, n }));
   }
+}
+// 봇용: 거대한 돌을 떨어뜨릴 가장 좋은 자리 (상대 돌 +1, 내 돌 -1.2, 상대가 바로 이기는 칸을 덮으면 크게)
+function bestGiantCell(p) {
+  const opp = other(p), blk = makeBlocked();
+  const oppWins = findWinCells(opp, blk[opp]);
+  let best = null;
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+    if (board[r][c] !== EMPTY || placeBlocked(r, c, p)) continue;
+    let score = 0, blocksWin = false;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const rr = r + dr, cc = c + dc;
+      if (!inBoard(rr, cc)) continue;
+      if (board[rr][cc] === opp) score += 1; else if (board[rr][cc] === p) score -= 1.2;
+    }
+    // 상대의 승리 자리를 모두 덮거나, 그 줄의 돌을 깨서 승리 자리가 사라지는지
+    if (oppWins.length) {
+      const saved = [];
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (inBoard(rr, cc)) { saved.push([rr, cc, board[rr][cc]]); board[rr][cc] = WALL; } }
+      blocksWin = findWinCells(opp, makeBlocked()[opp]).length === 0;
+      saved.forEach(([rr, cc, v]) => { board[rr][cc] = v; });
+      if (blocksWin) score += 10;
+    }
+    if (!best || score > best.score) best = { r, c, score, blocksWin };
+  }
+  return best;
 }
 // 카드를 얻을 때마다 (손버릇)
 function onCardGained(p, card) {
@@ -386,11 +423,22 @@ function handleWorldSync(data) {
 
 // ================= 맵 표시 =================
 const mapBadge = document.getElementById('map-badge');
+const abilityBadge = document.getElementById('ability-badge');
 function renderMapBadge() {
+  if (abilityBadge) {
+    const ab = abCard(BLACK);
+    abilityBadge.hidden = !ab || tut;
+    if (ab) abilityBadge.textContent = ab.icon + ' ' + cardName(ab);
+  }
   if (!mapBadge) return;
   const m = mapInfo();
   mapBadge.hidden = !world || tut;
   mapBadge.textContent = t('map.badge', { icon: m.icon, map: m.id }) + (world && world.round ? ' · ' + t('map.round', { n: world.round }) : '') + (world && world.zone ? ' · ⚡' + world.zone : '');
+}
+if (abilityBadge) {
+  const openAb = () => openCardDetail(BLACK, 'ability');
+  abilityBadge.addEventListener('click', openAb);
+  abilityBadge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAb(); } });
 }
 if (mapBadge) {
   const open = () => openCardDetail(null, 'map');
@@ -410,10 +458,27 @@ function renderAbilityDetail(f) {
   cdIcon.textContent = card.icon; cdName.textContent = cardName(card) + ' · ' + t('ab.badge');
   cdShort.textContent = cardShort(card); cdDesc.textContent = cardDesc(card);
   cdUse.hidden = true; cdClose.textContent = t('cd.close');
-  cdNote.textContent = '';
+  cdNote.textContent = t('ab.shared');
 }
 // 그리기: 장벽 칸 중 자기장·얼음은 다르게
+function giantAt(r, c) { return world ? world.giants.find(g => Math.max(Math.abs(g.r - r), Math.abs(g.c - c)) <= 1) : null; }
 function drawWorldCell(r, c, p) {
+  const g = giantAt(r, c);
+  if (g && !isZoneCell(r, c)) {
+    // 3×3 바위는 중심 칸을 그릴 때 한 번에 크게 그림
+    if (g.r === r && g.c === c) {
+      ctx.save();
+      const rad = CELL * 1.45;
+      const grad = ctx.createRadialGradient(p.x - rad * 0.3, p.y - rad * 0.35, rad * 0.15, p.x, p.y, rad);
+      grad.addColorStop(0, '#b9b1a6'); grad.addColorStop(0.6, '#7d7468'); grad.addColorStop(1, '#4e463d');
+      ctx.fillStyle = grad; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, rad, rad * 0.92, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = Math.round(CELL * 0.9) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🪨', p.x, p.y + 2);
+      ctx.restore();
+    }
+    return true;
+  }
   if (isZoneCell(r, c)) {
     ctx.fillStyle = 'rgba(110, 60, 190, 0.55)';
     ctx.fillRect(p.x - CELL / 2, p.y - CELL / 2, CELL, CELL);

@@ -56,6 +56,7 @@ Object.assign(I18N.ko, {
   'codex.chance': '출현 {p}%', 'codex.auto': '자동 발동', 'codex.manual': '조건 충족 시 사용', 'codex.mpOnly': '멀티 전용', 'codex.est': '예상',
   'codex.tierNote': '기존 카드: 짱짱맨끼리 200판에서 그 카드를 쓴 쪽의 승률·픽률 · 새 카드: 한쪽만 시작 패에 2장 쥐고 30판 · 시작 능력: 한쪽만 갖고 30판 · 전설 카드: 한쪽만 들고 10판 (모두 레벨 5, 아무것도 없는 기준선 46.4%, 판 수가 적어 ±15%p 정도 흔들림) · "예상"은 아직 측정 전이라 효과를 보고 매긴 티어입니다.',
   'codex.sec.cards': '일반 카드', 'codex.sec.legends': '전설 카드', 'codex.sec.abilities': '시작 능력',
+  'codex.abNote': '시작 능력은 판마다 무작위로 1개가 정해져 양쪽 모두에게 똑같이 적용됩니다.',
 });
 Object.assign(I18N.en, {
   'codex.open': '📚 Card Codex · Tier List', 'codex.openShort': '📚 Codex', 'codex.desc': 'Every card, legend, ability and map',
@@ -64,6 +65,7 @@ Object.assign(I18N.en, {
   'codex.chance': '{p}% to appear', 'codex.auto': 'Automatic', 'codex.manual': 'Use when ready', 'codex.mpOnly': 'Multiplayer only', 'codex.est': 'estimate',
   'codex.tierNote': 'Original cards: win and pick rate of the side that used them over 200 Super-bot games · New cards: one side starts with 2 copies, 30 games · Abilities: one side has it, 30 games · Legends: one side holds it, 10 games (all level 5; baseline with nothing 46.4%; small samples swing about ±15 points) · "estimate" = not measured yet.',
   'codex.sec.cards': 'Cards', 'codex.sec.legends': 'Legends', 'codex.sec.abilities': 'Abilities',
+  'codex.abNote': 'Each game rolls one random starting ability that applies to both players equally.',
 });
 
 const codexEl = document.getElementById('codex');
@@ -106,7 +108,7 @@ function renderCodex() {
   } else if (codexTab === 'legends') {
     html = '<div class="codex-grid">' + LEGEND_POOL.map(c => codexCard(c, t(c.auto ? 'codex.auto' : 'codex.manual') + (c.mpOnly ? ' · ' + t('codex.mpOnly') : ''))).join('') + '</div>';
   } else if (codexTab === 'abilities') {
-    html = '<div class="codex-grid">' + ABILITY_POOL.map(c => codexCard(c)).join('') + '</div>';
+    html = `<p class="codex-note codex-note-top">${escapeHtml(t('codex.abNote'))}</p>` + '<div class="codex-grid">' + ABILITY_POOL.map(c => codexCard(c)).join('') + '</div>';
   } else if (codexTab === 'maps') {
     html = '<div class="codex-grid">' + MAP_POOL.map(m => `<div class="codex-card map"><div class="cc-head"><span class="cc-icon">${m.icon}</span><span class="cc-name">${escapeHtml(mapName(m.id))}</span></div>` +
       `<div class="cc-short">${escapeHtml(mapShort(m.id))}</div><div class="cc-desc">${escapeHtml(mapDesc(m.id))}</div></div>`).join('') + '</div>' +

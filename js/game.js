@@ -235,7 +235,7 @@ function init() {
   cardLockNextTurn = { [BLACK]: false, [WHITE]: false };
   skipNextTurn = { [BLACK]: false, [WHITE]: false };
   lgReset();
-  worldReset(tut ? 'classic' : undefined);
+  worldReset(tut ? 'classic' : undefined, tut ? null : undefined);
   mpNotice = null; mpNoticeSeq = 0; lastSeenNoticeSeq = 0; mpBannerText = null;
   mpShakeSeq = 0; lastSeenShakeSeq = 0;
   mpRestartSeq = 0; lastSeenRestartSeq = 0;
@@ -408,7 +408,7 @@ cdUse.addEventListener('click', () => {
 
 function renderLegendDetail(f) {
   const card = lgCard(f.player);
-  if (!card || card.id !== f.id) { closeCardDetail(); return; }
+  if (!card || card.id !== f.id || !legendVisibleTo(f.player)) { closeCardDetail(); return; }
   const pr = lgProgress(f.player);
   cdIcon.textContent = card.icon; cdName.textContent = cardName(card) + ' · ' + t('lg.badge');
   cdShort.textContent = cardShort(card); cdDesc.textContent = cardDesc(card);
@@ -431,7 +431,7 @@ function renderLegend(player, container) {
   if (!container) return;
   container.innerHTML = '';
   const appendChip = () => {
-    const ab = abCard(player);
+    const ab = null; // 시작 능력은 양쪽 공통이라 상태 줄의 배지로 표시
     if (ab) {
       // 시작 능력 (양쪽 공개)
       const chip = document.createElement('button');
@@ -441,6 +441,15 @@ function renderLegend(player, container) {
       container.appendChild(chip);
     }
   };
+  if (lg && lg.card[player] && !legendVisibleTo(player)) {
+    // 상대의 전설 카드: 쓰기 전까지는 고른 사실만 보임
+    const hid = document.createElement('div');
+    hid.className = 'legend-btn hidden-legend';
+    hid.innerHTML = `<span class="lgb-icon">🂠</span><span class="lgb-main"><span class="lgb-name">${t('lg.hiddenName')}</span><span class="lgb-prog">${t('lg.hiddenNote')}</span></span><span class="lgb-tag">${t('lg.badge')}</span>`;
+    container.appendChild(hid);
+    appendChip();
+    return;
+  }
   const card = lgCard(player);
   if (!card) { appendChip(); return; }
   const done = lg.done[player], pr = lgProgress(player);
@@ -591,6 +600,21 @@ function draw() {
     return;
   }
 
+  // 🙈 눈 감고 두기: 판 전체가 어두워짐 (내가 두려는 자리 미리보기만 보임)
+  if (isDark()) {
+    drawDark();
+    if (pendingPlacement) {
+      const p = cellCenter(pendingPlacement.r, pendingPlacement.c);
+      ctx.save(); ctx.globalAlpha = 0.45; drawStoneAt(p.x, p.y, current); ctx.restore();
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, R + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (pendingTargetCell) {
+      const p = cellCenter(pendingTargetCell.r, pendingTargetCell.c);
+      ctx.strokeStyle = getVar('--gold'); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, CELL * 0.5, 0, Math.PI * 2); ctx.stroke();
+    }
+    return;
+  }
+
   craterList.forEach(cr => {
     if (board[cr.r][cr.c] !== EMPTY) return;
     const p = cellCenter(cr.r, cr.c);
@@ -674,6 +698,7 @@ function draw() {
     ctx.restore();
   }
 
+  drawKings();
   if (lastMovePos && !isHiddenFor(lastMovePos.r, lastMovePos.c, viewerColor())) {
     const p = cellCenter(lastMovePos.r, lastMovePos.c);
     ctx.strokeStyle = getVar('--accent'); ctx.lineWidth = 2;
@@ -889,6 +914,7 @@ function handlePlace(pos) {
 }
 
 function passTurn() {
+  if (slothRun) { slothRun.passPending = true; return; } // 나무늘보 연속 발동 중 턴 종료 카드는 다 끝난 뒤 한 번만
   legendTurnEnd(current);
   worldTurnEnd(current);
   draftAfterTurn = null;
@@ -1044,10 +1070,12 @@ function legendPicks() {
 function logMapStart() {
   const m = mapInfo();
   addLog(L('log.mapIs', { icon: m.icon, map: m.id, mapShort: m.id }));
+  const ab = abCard(BLACK);
+  if (ab) addLog(L('log.abIs', { icon: ab.icon, card: ab.id }));
 }
-// 게임 시작: 각자 전설 카드 → 시작 능력 순서로 고름
+// 게임 시작: 각자 전설 카드를 고름 (시작 능력은 판마다 무작위로 양쪽 공통)
 function makeStartupQueue(players) {
-  return players.flatMap(p => [{ p, kind: 'legend' }, { p, kind: 'ability' }]);
+  return players.map(p => ({ p, kind: 'legend' }));
 }
 function draftPicksFor(player, kind) {
   if (kind === 'legend') return legendPicks();
@@ -1057,6 +1085,13 @@ function draftPicksFor(player, kind) {
 function openDraft(player) {
   const kind = startupQueue && startupQueue.length ? startupQueue[0].kind : 'card';
   const picks = draftPicksFor(player, kind);
+  if (kind === 'card' && lg && lg.card[player] === 'sloth' && !lg.done[player]) {
+    // 🦥 나무늘보를 쥐고 있으면 카드를 고를 수 없고 무작위로 받음
+    draftPlayer = player; draftOpen = false;
+    addLog(L('lg.slothDraft', { color: player }));
+    pickCardIntoHand(picks[Math.floor(Math.random() * picks.length)]);
+    return;
+  }
   if (mode === 'bot' && player !== myColor) {
     // 봇은 UI 없이 선택 (저난이도는 무작위, 고난이도는 강한 카드 우선)
     draftPlayer = player;
@@ -1120,10 +1155,12 @@ function pickCardIntoHand(card) {
   if (card.legend) {
     // 전설 카드는 패가 아니라 전설 칸에 (판마다 1장)
     lg.card[p] = card.id;
-    addLog(L('lg.picked', { color: p, icon: card.icon, card: card.id }));
+    // 고른 전설 카드는 상대에게 비공개 (로컬은 같은 화면이라 기록에도 이름을 남기지 않음)
+    const named = mode === 'multiplayer' || (mode === 'bot' && p === myColor);
+    addLog(named ? L('lg.picked', { color: p, icon: card.icon, card: card.id }) : L('lg.pickedHidden', { color: p }));
     draftOverlay.classList.remove('show');
     draftOpen = false;
-    if (mode === 'multiplayer' && dbApi && roomCode) dbApi.updatePath('games/' + roomCode + '/lgPick', { [p]: card.id }).catch(() => {});
+    if (mode === 'multiplayer' && dbApi && roomCode) { dbApi.updatePath('games/' + roomCode + '/lgPick', { [p]: '?' }).catch(() => {}); savePrivateState(); }
     if (startupQueue) { startupQueue.shift(); runStartupDraft(); }
     else { updateStatus(); updatePips(); updateHandUI(); draw(); }
     return;
@@ -1288,7 +1325,9 @@ function isValidTradeSecond(first, r, c) {
 }
 
 function useCard(player, idx) {
-  if (player !== current || gameOver || draftOpen || pendingTarget || usedCardThisTurn[player] || alkPhaseActive()) return;
+  const sloth = slothRun && slothRun.p === player; // 나무늘보: 패 전체를 연달아 발동하는 중
+  if (gameOver || draftOpen || pendingTarget || alkPhaseActive()) return;
+  if (!sloth && (player !== current || usedCardThisTurn[player])) return;
   if (mode === 'multiplayer' && player !== myColor) return;
   const card = hand[player][idx];
   if (!card) return;
@@ -1525,6 +1564,16 @@ function handleTargetClick(pos) {
     trapList = trapList.filter(tr => !(tr.r === r && tr.c === c));
     craterList.push({ r, c, turns: 2, fresh: true });
     addLog(L('log.bombDone', C));
+    resolved = true;
+
+  } else if (t.type === 'kingPick') {
+    // 👑 왕으로 지정 (20턴 살아남으면 귀환)
+    if (board[r][c] !== t.forPlayer) return;
+    lgFinish(t.forPlayer);
+    const lc = lgCard(t.forPlayer);
+    addLog(L('lg.used', { color: t.forPlayer, icon: lc.icon, card: lc.id }));
+    lg.king[t.forPlayer] = { r, c, start: lg.turnNo };
+    addLog(L('lg.kingSet', C));
     resolved = true;
 
   } else if (t.type === 'self_remove' && board[r][c] === t.forPlayer) {

@@ -95,6 +95,7 @@
       <span id="status-text">흑 차례</span>
       <span id="win-length-badge">6목 규칙</span>
       <span class="map-badge" id="map-badge" role="button" tabindex="0" hidden></span>
+      <span class="map-badge ability-badge" id="ability-badge" role="button" tabindex="0" hidden></span>
       <span class="spec-badge" id="spec-badge" hidden></span>
       <button class="cancel-btn" id="cancel-btn" data-i18n="cancel">취소</button>
     </div>
@@ -193,6 +194,10 @@
     </div>
   </div>
 
+<div class="counter-box" id="counter-box" hidden role="alertdialog" aria-live="assertive">
+  <div class="counter-panel"><div class="counter-icon">🧘</div><div id="counter-text"></div>
+    <div class="counter-actions"><button class="plain counter-yes" type="button" id="counter-yes">무효화</button><button class="plain" type="button" id="counter-no">넘기기</button></div></div>
+</div>
 <div class="codex" id="codex" hidden>
   <div class="codex-panel" role="dialog" aria-modal="true" aria-labelledby="codex-title">
     <div class="codex-top"><span class="codex-title" id="codex-title">카드 도감</span><button class="plain" type="button" id="codex-close">닫기</button></div>

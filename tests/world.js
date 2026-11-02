@@ -8,15 +8,18 @@ const openBench = require('./load');
     const put = (list, v) => list.forEach(([r, c]) => { board[r][c] = v; });
     const endRound = () => { current = 2; turnPlacementsDone = 1; passTurn(); };
     const give = (p, id) => { hand[p].push(CARD_POOL.find(c => c.id === id)); return hand[p].length - 1; };`;
-  // 시작 순서: 흑 전설 → 흑 능력 → 백 전설 → 백 능력, 다시 뽑기
+  // 시작: 흑 전설 → 백 전설, 시작 능력은 무작위로 양쪽 공통, 다시 뽑기
   res.startup = await ev(`(() => {
     mode = 'local'; init();
     const seq = [];
     const r0 = world.refresh[1], btn0 = !document.getElementById('draft-refresh').hidden;
     const before = lastDraft.picks.map(c => c.id).join(); document.getElementById('draft-refresh').click();
-    const after = lastDraft.picks.map(c => c.id).join(), r1 = world.refresh[1], btn1 = !document.getElementById('draft-refresh').hidden;
-    for (let i = 0; i < 4; i++) { seq.push(lastDraft.kind + ':' + draftPlayer); pickCardIntoHand(lastDraft.kind === 'ability' ? ABILITY_POOL.find(c => c.id === (i === 1 ? 'retry' : 'clover')) : lastDraft.picks[0]); }
-    return { seq, refresh: [r0, r1, btn0, btn1, before !== after], retry: world.refresh[1], ab: world.ab, q: startupQueue, mapLog: logLines.map(fmt).find(l => l.includes('맵')) };
+    const after = lastDraft.picks.map(c => c.id).join(), r1 = world.refresh[1];
+    for (let i = 0; i < 2; i++) { seq.push(lastDraft.kind + ':' + draftPlayer); pickCardIntoHand(lastDraft.picks[0]); }
+    const shared = world.ab[1] === world.ab[2] && !!world.ab[1];
+    worldReset('classic', 'retry'); const retry = [world.refresh[1], world.refresh[2]];
+    const seen = new Set(); for (let k = 0; k < 200; k++) { worldReset('classic'); seen.add(world.ab[1]); }
+    return { seq, refresh: [r0, r1, btn0, before !== after], shared, retry, abilitiesSeen: seen.size, q: startupQueue, logs: logLines.map(fmt).filter(l => l.includes('맵') || l.includes('시작 능력')) };
   })()`);
   // 행운(4장 중), 넉넉한 주머니(5장)
   res.abilities = await ev(`(() => { ${setup}
@@ -95,8 +98,9 @@ const openBench = require('./load');
     fresh(1); i = give(1, 'double'); activateCard(1, i); out.double = hand[1].length;
     fresh(1); hand[2] = [CARD_POOL[0], CARD_POOL[1]]; i = give(1, 'peek'); activateCard(1, i); out.peek = { view: peekView && peekView.cards, log: logLines[0] && fmt(logLines[0]) };
     current = 1; turnPlacementsDone = 1; passTurn(); out.peekCleared = peekView === null;
-    fresh(1); i = give(1, 'giant'); activateCard(1, i); handlePlace({ r: 7, c: 7 }); out.giant = [board[7][7], board[7][8], board[8][7], board[8][8], current];
-    fresh(1); put([[4,5],[4,6],[4,7]], 1); i = give(1, 'giant'); activateCard(1, i); handlePlace({ r: 3, c: 3 }); out.giantNoWin = { over: gameOver, skipped: board[4][4], others: [board[3][4], board[4][3]] };
+    fresh(1); put([[6,6],[6,8],[8,7]], 2); put([[7,8]], 1); put([[9,9]], 2); i = give(1, 'giant'); activateCard(1, i); handlePlace({ r: 7, c: 7 });
+    out.giant = { block: [board[6][6], board[7][7], board[8][8], board[6][8]], outside: board[9][9], whites: countStones(2), blacks: countStones(1), cur: current, canPlace: placeBlocked(7, 7, 2) || board[7][7] !== 0, giants: world.giants.length, log: fmt(logLines[0]) };
+    fresh(2); put([[5,5],[5,6],[5,7],[5,8]], 2); put([[1,1]], 1); out.botGiant = (() => { hand[1] = []; current = 1; const g = bestGiantCell(1); return { r: g.r, c: g.c, blocksWin: g.blocksWin }; })();
     fresh(1); i = give(1, 'ghost'); activateCard(1, i); handlePlace({ r: 6, c: 6 });
     out.ghost = { hiddenForWhite: isHiddenFor(6, 6, 2), visibleForBlack: !isHiddenFor(6, 6, 1) };
     mode = 'bot'; myColor = 2; current = 2; draw();

@@ -1133,6 +1133,7 @@ function lgUrgentMove(botColor) {
 function placeBotPick(botColor, pick) {
   const urgent = lgUrgentMove(botColor);
   if (urgent) pick = urgent;
+  if (wNext.giant === botColor) { const g = bestGiantCell(botColor); if (g) pick = g; } // 거대한 돌은 가장 많이 깨는 자리에
   const noWin = lg && lg.big === botColor; // 대기만성 턴: 승리 줄을 완성하는 칸은 둘 수 없음
   if (pick && noWin && lgWouldWin(pick.r, pick.c, botColor)) pick = null;
   if (pick) handlePlace({ r: pick.r, c: pick.c });
@@ -1325,10 +1326,13 @@ function botUseCardSmart(botColor, after, opts) {
         // 1+1: 한 장 쓰고 두 장 받음 — 패 자리가 있으면 사용
         if (hand[botColor].length <= handLimit(botColor) - 1) consider(idx, 900);
         break;
-      case 'giant':
-        // 거대한 돌: 다음 착수 옆 3칸이 덤으로 붙음
-        consider(idx, oppCritical ? 600 : 1800);
+      case 'giant': {
+        // 거대한 돌: 3×3 안의 상대 돌을 깨는 만큼 이득 (내 돌도 깨짐, 이번 착수는 바위가 됨)
+        const g = bestGiantCell(botColor);
+        if (g && g.blocksWin) consider(idx, 40000);
+        else if (g && g.score >= 2) consider(idx, 900 + g.score * 400);
         break;
+      }
       case 'ghost':
         consider(idx, 300);
         break;
@@ -1486,7 +1490,7 @@ function botLegendTry(botColor) {
 }
 
 // 봇의 전설 카드 선택: 봇이 스스로 조건을 채우기 쉬운 카드 우선
-const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth', 'nap'];
+const BOT_LEGEND_PRIORITY = ['king', 'latebloom', 'obelisk', 'clown', 'turtle', 'blind', 'chicken', 'allin', 'nothing', 'mirror', 'sloth'];
 // 봇의 시작 능력 선택
 const BOT_ABILITY_PRIORITY = ['sturdy', 'pouch', 'clover', 'umbrella', 'pickpocket', 'retry'];
 function botPickDraft(picks, player) {
