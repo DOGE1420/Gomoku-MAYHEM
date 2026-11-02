@@ -279,6 +279,7 @@ function applyPublicSnapshot(data) {
     mpNoticeSeq = 0; mpShakeSeq = 0;
     lgReset();
     world = null; // 새 판의 맵·시작 능력은 공개 상태에서 받음
+    bgmNewGame();
     draftOverlay.classList.remove('show');
   }
   // 번호는 양쪽 화면이 같은 값을 이어 써야 함 — 상대가 올린 번호를 내 쪽에도 맞춰 둠
@@ -470,6 +471,7 @@ function applySpectatorState(data) {
 }
 let specBeatTimer = null, unsubSpectators = null, spectatorsSnap = null;
 function startSpectate(code, data) {
+  bgmNewGame();
   mode = 'multiplayer'; spectator = true; myColor = 0; roomCode = code;
   mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, data.players || {});
   hand = { [BLACK]: [], [WHITE]: [] }; specHandN = { [BLACK]: 0, [WHITE]: 0 };
@@ -557,6 +559,7 @@ firstPickOptions.addEventListener('click', (e) => {
 renderFirstPick();
 
 function startRematch(newColor, viaRandom) {
+  bgmNewGame();
   // 진 사람이 고른 색으로 자리 바꾸기 (players 매핑을 통째로 교환)
   const swap = newColor && newColor !== myColor;
   if (swap) {
@@ -624,6 +627,7 @@ async function joinRoom(codeRaw) {
     else { startSpectate(code, data); return; } // 자리가 다 찼으면 관전
 
     mode = 'multiplayer'; spectator = false;
+    bgmNewGame();
     myColor = assignedColor;
     roomCode = code;
     mpPlayers = Object.assign({ [BLACK]: null, [WHITE]: null }, players);

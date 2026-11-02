@@ -198,12 +198,14 @@ function showScreen(name) {
   lobbyScreen.style.display = name === 'lobby' ? 'flex' : 'none';
   gameScreen.style.display = name === 'game' ? 'flex' : 'none';
   subText.style.display = name === 'game' ? 'block' : 'none';
+  if (name !== 'game') bgmMenu(); // 메뉴·로비는 메뉴 곡
 }
 
 function other(p) { return p === BLACK ? WHITE : BLACK; }
 function isStone(v) { return v === BLACK || v === WHITE; }
 
 function init() {
+  if (!tut || tut.step === 1) bgmNewGame(); // 새 판마다 게임 곡 하나를 무작위로
   engineToken++; engineBusy = false;
   board = Array.from({ length: SIZE }, () => Array(SIZE).fill(EMPTY));
   current = BLACK;
